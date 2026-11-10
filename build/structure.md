@@ -24,6 +24,7 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `src/import/expression-text.ts` | Reading and writing conditions as text | `rules-overlay.md` §17; build log "text shape" |
 | `src/import/text-format.ts` | Reading the YAML text format into items, with problems per line | `text-format-and-csv.md` §1–3; build log "text shape" |
 | `src/import/export-text.ts` | Writing a rule or a whole package back out as text, in the one canonical form that re-imports unchanged | `text-format-and-csv.md` §1, §6 |
+| `src/import/read-back.ts` | Plain-English read-backs of edits, conditions and rules | `text-format-and-csv.md` §4; `rules-overlay.md` §17 |
 | `src/import/draft.ts` | Text → draft (keys matched and written back, review status, reference checks) → deploy or discard | `text-format-and-csv.md` §1, §3, §8; `infra.md` §1–2 |
 
 ## Screens (`src/ui/`, thin)
@@ -33,12 +34,14 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `main.tsx` | Opens storage, registers the service worker, renders | brief §1.1 |
 | `app-data.ts` | Every operation the screens need, over the storage seam | brief §3 |
 | `App.tsx` | Tabs: World, Import, Log, Data | brief §3 |
-| `screens/WorldScreen.tsx` | Units and things | brief §3 |
-| `screens/UnitScreen.tsx` | Unit card with a read date; tap a value → derivation; tap a rule → "why not?" tree; "View rule" → its text, copy, export the rule or its package; withdraw / add again the logged events | `rules-overlay.md` §13 |
+| `screens/WorldScreen.tsx` | Everything deployed, by kind (units, things, rules, named scopes, events, packages); tap to open | brief §3 |
+| `screens/ItemScreen.tsx` | Any item in words (a thing's links in and out, events, rules that name it; a rule's read-back; a package's members) plus its text | `rules-overlay.md` §13 (first, static step); `text-format-and-csv.md` §4, §6 |
+| `screens/UnitScreen.tsx` | Unit card with a read date; tap a value → derivation; tap a rule → "why not?" tree; "View rule" / "View unit text" (`ItemText`); "Open rule"; withdraw / add again the logged events | `rules-overlay.md` §13 |
 | `screens/ImportScreen.tsx` | Paste, open a file, or load a test world → draft review → deploy / discard | `text-format-and-csv.md` §8 |
 | `screens/LogScreen.tsx` | Add an event entry; withdraw; the audit view | `infra.md` §2 |
 | `screens/DataScreen.tsx` | Export, import and wipe the whole copy; storage status | CLAUDE.md "No server" |
 | `save-file.ts` | Hands the viewer a file: the share sheet on iPhone, else a download | CLAUDE.md "No server" |
+| `components/ItemText.tsx` | "View text" on any item: copy, export it, export its package | `text-format-and-csv.md` §6 |
 | `components/Trace.tsx` | A condition's trace: true / false / can't tell and its inputs | `rules-overlay.md` §13 |
 | `fixtures.ts` | Bundles `test/fixtures/*.yaml` into the app | brief §3 "Fixtures" |
 

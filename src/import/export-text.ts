@@ -182,8 +182,21 @@ function blockFor(item: ContentItem, linksOfUnit: (key: string) => Link[]): stri
 
 // One rule as a file that re-imports into its own package without changing anything else.
 export function ruleToText(rule: Rule, pkg: Package | undefined): string {
+  return itemToText(rule, pkg, []);
+}
+
+// Any one item as a file that re-imports into its own package without changing anything else.
+// A unit comes with its own links from the same package; a package gives the whole package.
+export function itemToText(item: ContentItem, pkg: Package | undefined, content: ContentItem[]): string {
+  if (item.class === "package") return packageToText(item, content);
+  const ownLinks =
+    item.class === "unit"
+      ? content
+          .filter((other): other is Link => other.class === "link" && other.from === item.key && other.package === item.package)
+          .sort((a, b) => (pkg?.members.indexOf(a.key) ?? 0) - (pkg?.members.indexOf(b.key) ?? 0)) // as written
+      : [];
   const head = pkg ? packageHeader(pkg) : [];
-  return [...head, ...sections([rule])].join("\n").replace(/^\n/, "") + "\n";
+  return [...head, ...sections([item, ...ownLinks])].join("\n").replace(/^\n/, "") + "\n";
 }
 
 // A whole package: every item that belongs to it, in its written order.
