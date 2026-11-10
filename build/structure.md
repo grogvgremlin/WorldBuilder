@@ -23,6 +23,7 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `src/overlay/derivation.ts` | Shapes of the derivation and the "why not?" tree | `rules-overlay.md` §13; `resolver.md` §11 |
 | `src/import/expression-text.ts` | Reading and writing conditions as text | `rules-overlay.md` §17; build log "text shape" |
 | `src/import/text-format.ts` | Reading the YAML text format into items, with problems per line | `text-format-and-csv.md` §1–3; build log "text shape" |
+| `src/import/export-text.ts` | Writing a rule or a whole package back out as text, in the one canonical form that re-imports unchanged | `text-format-and-csv.md` §1, §6 |
 | `src/import/draft.ts` | Text → draft (keys matched and written back, review status, reference checks) → deploy or discard | `text-format-and-csv.md` §1, §3, §8; `infra.md` §1–2 |
 
 ## Screens (`src/ui/`, thin)
@@ -33,10 +34,11 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `app-data.ts` | Every operation the screens need, over the storage seam | brief §3 |
 | `App.tsx` | Tabs: World, Import, Log, Data | brief §3 |
 | `screens/WorldScreen.tsx` | Units and things | brief §3 |
-| `screens/UnitScreen.tsx` | Unit card with a read date; tap a value → derivation; tap a rule → "why not?" tree; withdraw / add again the logged events | `rules-overlay.md` §13 |
+| `screens/UnitScreen.tsx` | Unit card with a read date; tap a value → derivation; tap a rule → "why not?" tree; "View rule" → its text, copy, export the rule or its package; withdraw / add again the logged events | `rules-overlay.md` §13 |
 | `screens/ImportScreen.tsx` | Paste, open a file, or load a test world → draft review → deploy / discard | `text-format-and-csv.md` §8 |
 | `screens/LogScreen.tsx` | Add an event entry; withdraw; the audit view | `infra.md` §2 |
 | `screens/DataScreen.tsx` | Export, import and wipe the whole copy; storage status | CLAUDE.md "No server" |
+| `save-file.ts` | Hands the viewer a file: the share sheet on iPhone, else a download | CLAUDE.md "No server" |
 | `components/Trace.tsx` | A condition's trace: true / false / can't tell and its inputs | `rules-overlay.md` §13 |
 | `fixtures.ts` | Bundles `test/fixtures/*.yaml` into the app | brief §3 "Fixtures" |
 
@@ -53,7 +55,13 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `test/unit/import.test.ts` | Drafts, keys written back, problems per line, condition text |
 | `test/unit/seams.test.ts` | Only `log/unseal.ts` reads the seal; only `src/store/` touches IndexedDB |
 | `test/unit/schema-emitted.test.ts` | `schema/` matches the zod schemas |
+| `test/unit/export-text.test.ts` | Exported rules and packages re-import unchanged and rebuild the same content |
+| `test/cases/guide-examples.test.ts` | The "try" examples in `build/yaml-guide.md` |
 | `test/fixtures/*.yaml` | The E1, E2 and E4 worlds (also loadable from the app) |
+
+## Guides
+
+- `build/yaml-guide.md`: how to write world text for the import, with examples to try.
 
 ## Commands
 

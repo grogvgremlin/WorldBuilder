@@ -49,6 +49,9 @@ Checked in a headless phone-sized browser against the production build: load E1 
 | Numbers are not rounded | No manifest rounding in slice 0; nothing in E1, E2 or E4 makes a fraction. |
 | A rule on a stat the unit's profile doesn't have is skipped | No base value to fold from. |
 | Re-importing text whose `log:` events are already logged (same event key) skips them, with a warning | Loading a fixture twice doesn't double the event. |
+| Exported text: one canonical form (sections in the package's own order, a unit's links under it, every rule's `layer` written out) | Re-importing an export changes nothing, and a fresh import rebuilds the same content: tested for every fixture. |
+| Importing part of a package keeps its other members (deployed members first, new ones added at the end) | text-format §6: edit some entries and re-import; only those show as edits. Before this, re-importing one rule would have dropped the rest from the package's member list. |
+| Code boxes scroll sideways instead of wrapping | A wrapped YAML line reads as a different structure. |
 | Version label (`commit · date`) on the Data screen | So the owner can tell which build the phone is running. |
 | Second workflow `test.yml` runs tests and the build on other branches | Catches problems before merging to `main`. |
 
@@ -120,6 +123,20 @@ log:                                            # same shape; appended to the lo
 **Keys**: a written key wins. With no key, the label is matched once against deployed items of the same class: one match takes its key; none or several makes a new slug key (several also gives a warning). The rewritten text is shown in the review to copy back. Links have no header: their key is the tuple `from~kind~to~start`.
 
 **Problems** are reported per line (YAML line numbers) and never stop the rest: an item with an error is left out; warnings (missing reference, no category, unknown section) still import.
+
+---
+
+## Owner feedback on the prototype (10 Nov 2026)
+
+Candidates for the next slice brief. None is a design change: each is in the design, outside slice 0's brief.
+
+1. **Swap or pin the order from the card.** The Gunnery School's order matches the design (category decides), but there's no way to change it on the card. Design: pins and category-order edits are the GM fixes (`rules-overlay.md` §12), shown dated in the derivation.
+2. **Place or polity?** Nuln is a settlement and a polity. Nuln civic pride's scope targets the thing Nuln by `raised_at > in*` (containment, so effectively the place). Its `category: place` is written on the rule, not taken from the kind. Design (`rules-overlay.md` §6, AGREED tentative): where one thing has several kinds, the author chooses the kind (and so the link followed), and the derivation shows what was chosen. Slice 0 neither asks nor shows it.
+3. **Tap a thing to see its tree.** Design (`rules-overlay.md` §13): "any thing has a tree: what it reaches, what reaches it, the rules active there". Slice 0 only gives the tree per rule on a unit card.
+4. **Rules on their own.** A list of every rule (scope, trigger, nature, category, layer, package) without opening a unit.
+5. **The explanation is wordy.** Fine for now; refine the derivation's wording later.
+6. **A guide to the text format.** Done: `build/yaml-guide.md`, with examples checked by a test.
+7. **"View rule", with export.** Done: on the unit card, each rule has **View rule**: its text as it would be written for import, with Copy, Export rule and Export package.
 
 ---
 
