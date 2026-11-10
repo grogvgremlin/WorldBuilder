@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "reaches"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "by": {
+                  "type": "string",
+                  "const": "thing"
+                },
+                "key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "by",
+                "key"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "by": {
+                  "type": "string",
+                  "const": "kind"
+                },
+                "kind": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "by",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "via": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "link": {
+                "type": "string"
+              },
+              "repeat": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "link",
+              "repeat"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "when": {
+          "type": "string",
+          "enum": [
+            "as_of",
+            "ever"
+          ]
+        }
+      },
+      "required": [
+        "node",
+        "target",
+        "via",
+        "when"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "in_force"
+        },
+        "what": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "node",
+        "what",
+        "roles"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "named_scope"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "all"
+        },
+        "of": {
+          "type": "array",
+          "items": {
+            "$ref": "#"
+          }
+        }
+      },
+      "required": [
+        "node",
+        "of"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "any"
+        },
+        "of": {
+          "type": "array",
+          "items": {
+            "$ref": "#"
+          }
+        }
+      },
+      "required": [
+        "node",
+        "of"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "const": "not"
+        },
+        "of": {
+          "$ref": "#"
+        }
+      },
+      "required": [
+        "node",
+        "of"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "recordedTime": {
+      "type": "string"
+    },
+    "device": {
+      "type": "string"
+    },
+    "hostSeq": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "seal": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string",
+              "const": "plain"
+            },
+            "body": {
+              "type": "object",
+              "properties": {
+                "identity": {
+                  "type": "object",
+                  "properties": {
+                    "actor": {
+                      "type": "string"
+                    },
+                    "enteredBy": {
+                      "type": "string"
+                    },
+                    "signOffs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "person": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "at": {
+                            "type": "string"
+                          },
+                          "how": {
+                            "type": "string",
+                            "enum": [
+                              "by_hand",
+                              "auto",
+                              "host"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "person",
+                          "role",
+                          "at",
+                          "how"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "actor",
+                    "enteredBy",
+                    "signOffs"
+                  ],
+                  "additionalProperties": false
+                },
+                "status": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "awaiting_host",
+                        "accepted",
+                        "declined",
+                        "withdrawn",
+                        "purged"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                },
+                "order": {
+                  "type": "object",
+                  "properties": {
+                    "inWorldDate": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "iteration": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "orderKey": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "timeOfDay": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "effectiveTime": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "inWorldDate",
+                    "iteration",
+                    "orderKey",
+                    "timeOfDay",
+                    "effectiveTime"
+                  ],
+                  "additionalProperties": false
+                },
+                "content": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "proposed": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "committed": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "proposed",
+                        "committed",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "values": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "links": {
+                      "type": "object",
+                      "properties": {
+                        "commitBatch": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "causedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "dependsOn": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "withdraws": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "commitBatch",
+                        "causedBy",
+                        "dependsOn",
+                        "withdraws"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "originatingCalendar": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "source",
+                    "targets",
+                    "values",
+                    "links",
+                    "originatingCalendar"
+                  ],
+                  "additionalProperties": false
+                },
+                "visibility": {
+                  "type": "object",
+                  "properties": {
+                    "grants": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "grants"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "identity",
+                "status",
+                "order",
+                "content",
+                "visibility"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "form",
+            "body"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string",
+              "const": "sealed"
+            },
+            "ciphertext": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "form",
+            "ciphertext"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "recordedTime",
+    "device",
+    "hostSeq",
+    "seal"
+  ],
+  "additionalProperties": false
+}
