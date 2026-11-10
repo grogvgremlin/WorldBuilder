@@ -34,16 +34,16 @@ export function buildDraft(
   checkDuplicateKeys(parsed, problems);
   checkReferences(parsed, existing, problems);
 
+  const byKey = new Map(existing.content.map((item) => [item.key, item]));
   const packageItem: ContentItem = {
     class: "package",
     key: packageKey,
     label: parsed.packageLabel,
     package: packageKey,
     sourceLayer: parsed.sourceLayer,
-    members: parsed.items.map(({ item }) => item.key),
+    members: mergedMembers(byKey.get(packageKey), parsed.items.map(({ item }) => item.key)),
   };
   const allItems = [{ line: 1, item: packageItem }, ...parsed.items];
-  const byKey = new Map(existing.content.map((item) => [item.key, item]));
 
   const logItems = parsed.logEvents
     .filter(({ line, event }) => {
@@ -63,6 +63,14 @@ export function buildDraft(
     logItems,
     problems: problems.sort((a, b) => (a.line ?? 0) - (b.line ?? 0)),
   };
+}
+
+// A file may hold only part of a package (text-format §6: edit some entries, re-import, only
+// the changed ones show as edits). So the package keeps its deployed members, in their order,
+// and gains any new ones at the end.
+function mergedMembers(deployed: ContentItem | undefined, imported: string[]): string[] {
+  const kept = deployed?.class === "package" ? deployed.members : [];
+  return [...kept, ...imported.filter((key) => !kept.includes(key))];
 }
 
 // --- Keys ------------------------------------------------------------------------------------

@@ -45,6 +45,8 @@ After import, the review shows **"Text with keys written back"**. Keep that vers
 
 **Re-importing** an item with the same key is an **edit** (or **unchanged** if nothing differs). That is how you change something in slice 0.
 
+**Getting the text of something already deployed:** on a unit card, open a rule and tap **View rule**. It shows the rule written in this format, with **Copy**, **Export rule** and **Export package** (the whole package it came from). Edit the text and import it to change the rule. A file can hold just part of a package: the package's other items stay as they are.
+
 ---
 
 ## 3. Package header

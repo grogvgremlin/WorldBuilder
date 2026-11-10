@@ -139,7 +139,7 @@ function DraftReview({ draft, onDeploy, onDiscard, onBack }: { draft: DraftBatch
         <>
           <h2>Text with keys written back</h2>
           <p className="muted">Keep this version: re-importing it edits the same items.</p>
-          <pre>{draft.rewrittenText}</pre>
+          <pre className="code">{draft.rewrittenText}</pre>
           <button onClick={() => navigator.clipboard?.writeText(draft.rewrittenText)}>Copy text</button>
         </>
       )}

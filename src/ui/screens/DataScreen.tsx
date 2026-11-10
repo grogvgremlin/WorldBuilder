@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import type { AppData, Snapshot } from "../app-data";
+import { saveFile } from "../save-file";
 
 export function DataScreen({ data, snapshot, onChanged }: { data: AppData; snapshot: Snapshot; onChanged: () => Promise<void> }) {
   const [message, setMessage] = useState<string | null>(null);
@@ -11,23 +12,7 @@ export function DataScreen({ data, snapshot, onChanged }: { data: AppData; snaps
   const exportCopy = async () => {
     const copy = await data.exportCopy();
     const name = "worldbuilder-" + copy.exportedTime.slice(0, 19).replace(/[:T]/g, "-") + ".json";
-    const file = new File([JSON.stringify(copy, null, 2)], name, { type: "application/json" });
-    // On iPhone the share sheet is the way to save a file ("Save to Files").
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: name });
-        setMessage("Exported " + name);
-        return;
-      } catch {
-        // cancelled or unavailable: fall back to a download link
-      }
-    }
-    const url = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    link.click();
-    URL.revokeObjectURL(url);
+    await saveFile(name, JSON.stringify(copy, null, 2), "application/json");
     setMessage("Exported " + name);
   };
 
