@@ -77,6 +77,16 @@ describe("E1 Handgunners' Ld", () => {
     ]);
   });
 
+  it("shows the printed profile only, read before it was raised (2519)", async () => {
+    const unit = await resolveStored(store, "nuln_handgunners", 2519);
+    expect(unit.notYetRaised).toBe(true);
+    expect(unit.values.Ld).toBe(7);
+    expect(unit.derivations.Ld.steps).toEqual([]);
+    expect(unit.derivations.Ld.baseNote).toBe("profile (not raised until 2520)");
+    expect(unit.rules).toEqual([]);
+    expect((await resolveStored(store, "nuln_handgunners", 2520)).notYetRaised).toBe(false);
+  });
+
   it("is 8 read in 2523, before the wages were withheld", async () => {
     const unit = await resolveStored(store, "nuln_handgunners", 2523);
     expect(unit.values.Ld).toBe(8);

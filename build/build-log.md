@@ -12,7 +12,7 @@ Running record of the build: technical choices (with one line of why), the text 
 | E2 passes as a test | ✓ `test/cases/e2-depth.test.ts`: 8 by depth; 8 in any order when written `@statline` |
 | Round trip passes | ✓ `test/cases/round-trip.test.ts`, on both the in-memory and IndexedDB stores |
 | E4 (stretch) | ✓ `test/cases/e4-grenzstadt.test.ts`: +1 S kept in 2525; "while the Elector holds" stops in 2523 |
-| Installed on the iPhone from the Pages link | **Waiting on the owner**: Pages has to be switched on, and the branch merged to `main` (see "To publish" below) |
+| Installed on the iPhone from the Pages link | Published: Pages deploys from `main` (first merge 10 Nov). Phone checks: see "Closing slice 0" below |
 | `structure.md` and `build-log.md` | ✓ |
 
 Checked in a headless phone-sized browser against the production build: load E1 from its fixture → deploy → Ld 7 → withdraw → 8 → add again → 7; data kept across reload; the app opens offline once loaded.
@@ -142,6 +142,24 @@ Candidates for the next slice brief. None is a design change: each is in the des
 
 ---
 
+## Closing slice 0 (10 Nov 2026)
+
+Slice 0 stops adding features here. Everything in "Owner feedback" above, apart from items done, goes to the slice 1 brief.
+
+**Left for the owner to check on the iPhone** (a failure here is fixed in slice 0; anything else waits):
+- [ ] Installed from https://grogvgremlin.github.io/WorldBuilder/ (Share → Add to Home Screen)
+- [ ] Opens with Airplane Mode on
+- [ ] E1 still there after a few days; Data tab says storage is persistent
+- [ ] Round trip on the phone: Export → Files → Wipe → import → same values
+- [ ] E1: withdraw / add again flips Ld 7 → 8 → 7, derivation explains it
+
+**To take to the design project:**
+- Questions for design 1–8 below (9 decided by the owner).
+- The verdict on the YAML text shape (keep / change / drop).
+- Owner feedback items not done, as slice 1 candidates: references by label; attach a rule at a thing (§6 shorthand); the full tree at a date (what reaches a thing); pin or swap order from the card; shorter derivation wording; choosing a thing's kind in a scope; fixtures split into world / rules / army / log.
+
+---
+
 ## Questions for design
 
 Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.
@@ -154,4 +172,4 @@ Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.
 6. **Named scopes and depth.** A named scope is treated as "a scope that names no thing" (no depth; straight to category, then the bag). Right?
 7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things?
 8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"?
-9. **Read date before the raising date.** A unit read before it was raised still resolves (origin rules read as of raising; environment rules read the earlier date). Should the card say "not yet raised" instead?
+9. **Read date before the raising date.** ~~Should the card say "not yet raised"?~~ **Owner decision (10 Nov):** yes. Read before its raising date, a unit reads nothing from the world: the card says "Not raised until 2520" and shows the printed profile, greyed, with no rules (`UnitResolution.notYetRaised`; tested in E1). To carry back to the design project.

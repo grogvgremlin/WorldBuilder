@@ -52,7 +52,13 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
       </div>
 
       <h2>Profile at {readDate}</h2>
-      <div className="stats">
+      {resolution.notYetRaised && (
+        <div className="card">
+          <p><strong>Not raised until {resolution.raised}.</strong></p>
+          <p className="muted">In {readDate} this unit doesn't exist yet. Shown: the printed profile, with no rules read.</p>
+        </div>
+      )}
+      <div className="stats" style={resolution.notYetRaised ? { opacity: 0.45 } : undefined}>
         {stats.map((stat) => {
           const derivation = resolution.derivations[stat];
           const changed = derivation.final !== derivation.base;
@@ -76,7 +82,7 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
         </div>
       )}
 
-      <h2>Rules</h2>
+      {!resolution.notYetRaised && <h2>Rules</h2>}
       {resolution.rules.map((check) => (
         <div key={check.ruleKey} className="card">
           <button className="list-button" style={{ border: "none", padding: 0 }} onClick={() => setOpenRule(openRule === check.ruleKey ? null : check.ruleKey)}>
