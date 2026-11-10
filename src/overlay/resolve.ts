@@ -29,6 +29,9 @@ export interface UnitResolution {
   label: string;
   raised: number;
   readDate: number;
+  // Read before the raising date: the unit doesn't exist yet. No rules are read; values are
+  // the printed profile. (Owner decision, slice 0; build-log question 9.)
+  notYetRaised: boolean;
   values: Record<string, number>;
   derivations: Record<string, ValueDerivation>;
   rules: RuleCheck[]; // the "why not?" tree for every rule touching this unit's stats
@@ -64,6 +67,7 @@ export function resolveUnit(
 // --- One unit --------------------------------------------------------------------
 
 function resolveUnitInWorld(world: World, unit: Unit, readDate: number): UnitResolution {
+  if (readDate < unit.raised) return notYetRaised(unit, readDate);
   const rulesOnUnit = world.rules.filter((rule) => rule.effect.stat in unit.profile);
   const checks = rulesOnUnit.map((rule) => checkRule(world, rule, unit, readDate));
 
@@ -82,10 +86,30 @@ function resolveUnitInWorld(world: World, unit: Unit, readDate: number): UnitRes
     label: unit.label,
     raised: unit.raised,
     readDate,
+    notYetRaised: false,
     values,
     derivations,
     rules: checks.map((check) => check.tree),
     clashes,
+  };
+}
+
+// Before the raising date: the printed profile only, nothing read from the world.
+function notYetRaised(unit: Unit, readDate: number): UnitResolution {
+  const derivations: Record<string, ValueDerivation> = {};
+  for (const [stat, base] of Object.entries(unit.profile)) {
+    derivations[stat] = { stat, base, baseNote: "profile (not raised until " + unit.raised + ")", steps: [], lost: [], final: base, clashes: [] };
+  }
+  return {
+    unitKey: unit.key,
+    label: unit.label,
+    raised: unit.raised,
+    readDate,
+    notYetRaised: true,
+    values: { ...unit.profile },
+    derivations,
+    rules: [],
+    clashes: [],
   };
 }
 
