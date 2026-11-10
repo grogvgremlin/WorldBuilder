@@ -6,8 +6,12 @@ import { VitePWA } from "vite-plugin-pwa";
 // GitHub Pages serves the site under /<repo name>/.
 const base = process.env.PAGES_BASE ?? "/WorldBuilder/";
 
+// Shown on the Data screen, so the owner can tell which build the phone is running.
+const appVersion = (process.env.GITHUB_SHA ?? "dev").slice(0, 7) + " · " + new Date().toISOString().slice(0, 10);
+
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     VitePWA({

@@ -1,0 +1,311 @@
+/* Phone-first styles. Colours are tokens, redefined for dark mode. */
+
+:root {
+  --bg: #f6f3ec;
+  --surface: #ffffff;
+  --surface-2: #efebe1;
+  --text: #1e1c18;
+  --muted: #6b665c;
+  --line: #ddd6c7;
+  --accent: #8a2c1d;
+  --accent-text: #ffffff;
+  --good: #2f6b3a;
+  --bad: #9b2c22;
+  --warn: #8a5a00;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a17;
+    --surface: #26241f;
+    --surface-2: #302d27;
+    --text: #ece7dc;
+    --muted: #a59f92;
+    --line: #3d3a33;
+    --accent: #d8735f;
+    --accent-text: #1b1a17;
+    --good: #7cc48a;
+    --bad: #ec8b7f;
+    --warn: #e2b55a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1a17;
+  --surface: #26241f;
+  --surface-2: #302d27;
+  --text: #ece7dc;
+  --muted: #a59f92;
+  --line: #3d3a33;
+  --accent: #d8735f;
+  --accent-text: #1b1a17;
+  --good: #7cc48a;
+  --bad: #ec8b7f;
+  --warn: #e2b55a;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 84px);
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 4px 0 12px;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin: 20px 0 8px;
+}
+
+h3 {
+  font-size: 0.95rem;
+  margin: 12px 0 6px;
+}
+
+p {
+  margin: 6px 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 8px 0;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+button,
+.button {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button.link {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+textarea {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  min-height: 220px;
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 8px 0 4px;
+}
+
+ul.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+ul.plain > li {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+ul.plain > li:last-child {
+  border-bottom: none;
+}
+
+.list-button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.tag.good {
+  color: var(--good);
+}
+
+.tag.bad {
+  color: var(--bad);
+}
+
+.tag.warn {
+  color: var(--warn);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+}
+
+.stat {
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.stat .name {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stat .value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat.changed {
+  border-color: var(--accent);
+}
+
+.steps {
+  border-left: 3px solid var(--line);
+  margin-left: 4px;
+  padding-left: 12px;
+}
+
+.trace {
+  font-size: 0.9rem;
+  margin: 2px 0;
+}
+
+.trace .inputs {
+  color: var(--muted);
+  margin-left: 14px;
+}
+
+.trace .children {
+  margin-left: 14px;
+}
+
+.problem-error {
+  color: var(--bad);
+}
+
+.problem-warning {
+  color: var(--warn);
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  background: var(--surface-2);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+nav.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+nav.tabs button {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: none;
+  min-height: 56px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+nav.tabs button.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.withdrawn {
+  text-decoration: line-through;
+  color: var(--muted);
+}
