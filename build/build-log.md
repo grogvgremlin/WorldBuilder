@@ -123,6 +123,19 @@ log:                                            # same shape; appended to the lo
 
 ---
 
+## Owner feedback on the prototype (10 Nov 2026)
+
+Candidates for the next slice brief. None is a design change: each is in the design, outside slice 0's brief.
+
+1. **Swap or pin the order from the card.** The Gunnery School's order matches the design (category decides), but there's no way to change it on the card. Design: pins and category-order edits are the GM fixes (`rules-overlay.md` §12), shown dated in the derivation.
+2. **Place or polity?** Nuln is a settlement and a polity. Nuln civic pride's scope targets the thing Nuln by `raised_at > in*` (containment, so effectively the place). Its `category: place` is written on the rule, not taken from the kind. Design (`rules-overlay.md` §6, AGREED tentative): where one thing has several kinds, the author chooses the kind (and so the link followed), and the derivation shows what was chosen. Slice 0 neither asks nor shows it.
+3. **Tap a thing to see its tree.** Design (`rules-overlay.md` §13): "any thing has a tree: what it reaches, what reaches it, the rules active there". Slice 0 only gives the tree per rule on a unit card.
+4. **Rules on their own.** A list of every rule (scope, trigger, nature, category, layer, package) without opening a unit.
+5. **The explanation is wordy.** Fine for now; refine the derivation's wording later.
+6. **A guide to the text format.** Done: `build/yaml-guide.md`, with examples checked by a test.
+
+---
+
 ## Questions for design
 
 Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.

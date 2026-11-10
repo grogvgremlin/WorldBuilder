@@ -53,7 +53,12 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `test/unit/import.test.ts` | Drafts, keys written back, problems per line, condition text |
 | `test/unit/seams.test.ts` | Only `log/unseal.ts` reads the seal; only `src/store/` touches IndexedDB |
 | `test/unit/schema-emitted.test.ts` | `schema/` matches the zod schemas |
+| `test/cases/guide-examples.test.ts` | The "try" examples in `build/yaml-guide.md` |
 | `test/fixtures/*.yaml` | The E1, E2 and E4 worlds (also loadable from the app) |
+
+## Guides
+
+- `build/yaml-guide.md`: how to write world text for the import, with examples to try.
 
 ## Commands
 
