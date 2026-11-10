@@ -4,24 +4,24 @@
 // build/slice-0-brief.md §3 "Screens".
 
 import { useEffect, useState } from "react";
-import type { EventRecord, Package, Rule } from "../../schema";
+import type { EventRecord } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import type { UnitResolution } from "../../overlay/resolve";
 import type { AppliedStep, RuleCheck, ValueDerivation } from "../../overlay/derivation";
 import { Trace, TruthTag } from "../components/Trace";
 import { STAT_ORDER } from "../../import/text-format";
-import { packageToText, ruleToText } from "../../import/export-text";
-import { saveFile } from "../save-file";
+import { ItemText } from "../components/ItemText";
 
 interface Props {
   data: AppData;
   snapshot: Snapshot;
   unitKey: string;
   onBack: () => void;
+  onOpenItem: (key: string) => void;
   onChanged: () => Promise<void>;
 }
 
-export function UnitScreen({ data, snapshot, unitKey, onBack, onChanged }: Props) {
+export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChanged }: Props) {
   const [readDate, setReadDate] = useState<number>(() => latestDate(snapshot));
   const [resolution, setResolution] = useState<UnitResolution | null>(null);
   const [openStat, setOpenStat] = useState<string | null>(null);
@@ -37,10 +37,11 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onChanged }: Props
   return (
     <>
       <button className="link" onClick={onBack}>
-        ‹ World
+        ‹ Back
       </button>
       <h1>{resolution.label}</h1>
-      <p className="muted">Raised {resolution.raised}</p>
+      <p className="muted">Raised {resolution.raised} · {unitKey}</p>
+      <ItemText content={snapshot.content} itemKey={unitKey} label="View unit text" />
 
       <label htmlFor="read-date">Read date</label>
       <div className="row">
@@ -85,7 +86,10 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onChanged }: Props
             {check.applies ? <span className="tag good">applies</span> : <span className="tag bad">doesn't apply</span>}
           </button>
           {openRule === check.ruleKey && <WhyNotTree check={check} />}
-          <RuleText snapshot={snapshot} ruleKey={check.ruleKey} />
+          <div className="row">
+            <ItemText content={snapshot.content} itemKey={check.ruleKey} label="View rule" />
+            <button className="link" style={{ marginTop: 8 }} onClick={() => onOpenItem(check.ruleKey)}>Open rule</button>
+          </div>
         </div>
       ))}
 
@@ -199,37 +203,6 @@ function WhyNotTree({ check }: { check: RuleCheck }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// "View rule": the rule as text, the way it would be written to import it; copy or export it,
-// or its whole package. Design: design/text-format-and-csv.md §6 (export; re-imports exactly).
-function RuleText({ snapshot, ruleKey }: { snapshot: Snapshot; ruleKey: string }) {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const rule = snapshot.content.find((item): item is Rule => item.class === "rule" && item.key === ruleKey);
-  if (!rule) return null;
-  const pkg = snapshot.content.find((item): item is Package => item.class === "package" && item.key === rule.package);
-  const text = ruleToText(rule, pkg);
-
-  if (!open) {
-    return (
-      <button className="link" style={{ marginTop: 8 }} onClick={() => setOpen(true)}>
-        View rule
-      </button>
-    );
-  }
-  return (
-    <div style={{ marginTop: 8 }}>
-      <pre className="code">{text}</pre>
-      <div className="row">
-        <button onClick={async () => { await navigator.clipboard?.writeText(text); setCopied(true); }}>{copied ? "Copied" : "Copy"}</button>
-        <button onClick={() => saveFile(rule.key + ".yaml", text, "text/plain")}>Export rule</button>
-        {pkg && <button onClick={() => saveFile(pkg.key + ".yaml", packageToText(pkg, snapshot.content), "text/plain")}>Export package</button>}
-        <button className="link" onClick={() => setOpen(false)}>Hide</button>
-      </div>
-      <p className="muted">Re-importing this text changes nothing; edit it first to change the rule.</p>
     </div>
   );
 }

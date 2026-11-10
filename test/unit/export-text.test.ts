@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from "vitest";
 import { MemoryStore } from "../../src/store/memory-store";
-import { packageToText, ruleToText } from "../../src/import/export-text";
+import { itemToText, packageToText, ruleToText } from "../../src/import/export-text";
+import { readBackRule } from "../../src/import/read-back";
 import type { ContentItem, Package, Rule } from "../../src/schema";
 import { importToDraft, loadFixture, testDeps } from "../helpers";
 
@@ -47,6 +48,43 @@ describe.each(fixtures)("export text (%s)", (fixture, packageKey) => {
         [rule.key, "unchanged"],
       ]);
     }
+  });
+});
+
+describe.each(fixtures)("any item's text (%s)", (fixture, packageKey) => {
+  it("re-imports every item on its own as unchanged", async () => {
+    const store = new MemoryStore();
+    await loadFixture(store, testDeps(), fixture);
+    const content = await store.listContent();
+    const pkg = content.find((i) => i.key === packageKey) as Package;
+    for (const item of content) {
+      const draft = await importToDraft(store, testDeps(), itemToText(item, pkg, content));
+      expect(draft.problems, item.key).toEqual([]);
+      expect(draft.content.filter((c) => c.status !== "unchanged").map((c) => c.item.key), item.key).toEqual([]);
+    }
+  });
+});
+
+describe("read-back", () => {
+  it("says what each E1 rule does in words", async () => {
+    const store = new MemoryStore();
+    await loadFixture(store, testDeps(), "e1-handgunners.yaml");
+    const content = await store.listContent();
+    const labelOf = (key: string) => content.find((i) => i.key === key)?.label ?? key;
+    const rule = (key: string) => readBackRule(content.find((i) => i.key === key) as Rule, labelOf);
+    expect(rule("nuln_civic_pride").slice(0, 3)).toEqual([
+      "Effect: Ld +1.",
+      "Applies to units that reach Nuln by raised at, then in (any number of times).",
+      "No trigger: on whenever the scope matches.",
+    ]);
+    expect(rule("gunnery_school_pride")[0]).toBe("Effect: sets Ld 8 at this point.");
+    expect(rule("unpaid_wages")).toEqual([
+      "Effect: Ld −1.",
+      "Applies to units that are in the named scope “commissioned by the treasury”.",
+      "Only while wages withheld is in force (withholder: Wissenland treasury).",
+      "Environment rule: reads the world at the date you're viewing, in the stationed step.",
+      "Category title · book layer.",
+    ]);
   });
 });
 

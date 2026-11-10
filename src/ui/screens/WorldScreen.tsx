@@ -1,13 +1,21 @@
-// A list of units and things. Design: build/slice-0-brief.md §3 "a list of things and units".
+// Everything deployed, by kind: units, things, rules, named scopes, events and packages.
+// Tap any of them to see it in words and as text.
+// Design: build/slice-0-brief.md §3 "a list of things and units".
 
+import type { ContentItem } from "../../schema";
 import type { Snapshot } from "../app-data";
 
-export function WorldScreen({ snapshot, onOpenUnit, onImport }: { snapshot: Snapshot; onOpenUnit: (key: string) => void; onImport: () => void }) {
-  const units = snapshot.content.filter((item) => item.class === "unit");
-  const things = snapshot.content.filter((item) => item.class === "thing");
-  const rules = snapshot.content.filter((item) => item.class === "rule");
+interface Props {
+  snapshot: Snapshot;
+  onOpenItem: (key: string) => void;
+  onImport: () => void;
+}
 
-  if (units.length === 0 && things.length === 0) {
+export function WorldScreen({ snapshot, onOpenItem, onImport }: Props) {
+  const ofClass = (name: ContentItem["class"]) =>
+    snapshot.content.filter((item) => item.class === name).sort((a, b) => a.label.localeCompare(b.label));
+
+  if (snapshot.content.length === 0) {
     return (
       <>
         <h1>World</h1>
@@ -23,39 +31,37 @@ export function WorldScreen({ snapshot, onOpenUnit, onImport }: { snapshot: Snap
     );
   }
 
+  const section = (title: string, items: ContentItem[], detail: (item: ContentItem) => string) =>
+    items.length === 0 ? null : (
+      <>
+        <h2>{title}</h2>
+        <div className="card">
+          <ul className="plain">
+            {items.map((item) => (
+              <li key={item.key}>
+                <button className="list-button" style={{ border: "none", padding: 0, minHeight: 36 }} onClick={() => onOpenItem(item.key)}>
+                  <span>
+                    {item.label} <span className="muted">· {detail(item)}</span>
+                  </span>
+                  <span aria-hidden>›</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    );
+
   return (
     <>
       <h1>World</h1>
-      <h2>Units</h2>
-      {units.map((unit) => (
-        <button key={unit.key} className="list-button card" onClick={() => onOpenUnit(unit.key)}>
-          <span>
-            {unit.label}
-            <br />
-            <span className="muted">raised {unit.class === "unit" ? unit.raised : ""}</span>
-          </span>
-          <span aria-hidden>›</span>
-        </button>
-      ))}
-      <h2>Things</h2>
-      <div className="card">
-        <ul className="plain">
-          {things.map((thing) => (
-            <li key={thing.key}>
-              {thing.label}{" "}
-              {thing.class === "thing" &&
-                thing.kinds.map((kind) => (
-                  <span key={kind} className="tag">
-                    {kind}
-                  </span>
-                ))}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <p className="muted">
-        {rules.length} rules · {snapshot.log.length} log entries
-      </p>
+      {section("Units", ofClass("unit"), (i) => (i.class === "unit" ? "raised " + i.raised : ""))}
+      {section("Things", ofClass("thing"), (i) => (i.class === "thing" ? i.kinds.join(", ") || i.key : ""))}
+      {section("Rules", ofClass("rule"), (i) => (i.class === "rule" ? i.effect.stat + " · " + i.nature : ""))}
+      {section("Named scopes", ofClass("scope"), (i) => i.key)}
+      {section("Events (world history)", ofClass("event"), (i) => (i.class === "event" ? "from " + i.start : ""))}
+      {section("Packages", ofClass("package"), (i) => (i.class === "package" ? i.sourceLayer + " · " + i.members.length + " items" : ""))}
+      <p className="muted">{snapshot.log.length} log entries (see the Log tab).</p>
       {snapshot.persistent === false && <PersistNote />}
     </>
   );

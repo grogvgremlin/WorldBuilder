@@ -137,6 +137,8 @@ Candidates for the next slice brief. None is a design change: each is in the des
 5. **The explanation is wordy.** Fine for now; refine the derivation's wording later.
 6. **A guide to the text format.** Done: `build/yaml-guide.md`, with examples checked by a test.
 7. **"View rule", with export.** Done: on the unit card, each rule has **View rule**: its text as it would be written for import, with Copy, Export rule and Export package.
+8. **The same for every item.** Done: the World tab lists units, things, rules, named scopes, events and packages. Tapping one shows it in words (a thing's links in and out, its events and the rules that name it, directly or through a named scope; a rule read back in plain English; a package's members) and **View text** with the same Copy / Export / Export package. This also covers items 3 and 4 in part: a thing shows the rules that name it, and rules can be opened on their own. Not yet the full tree (what reaches it, worked out at a date).
+9. **Keys you don't know.** References (link ends, condition targets, roles) must be keys in slice 0; labels resolve only in headers. Owner asked what happens when you don't know the key. Answered; see the reply in the session. Candidate: resolve references by label as well, writing the key back (`text-format-and-csv.md` §3, the same rule as headers; authoring v2 "resolve on entry").
 
 ---
 
