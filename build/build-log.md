@@ -140,6 +140,12 @@ Candidates for the next slice brief. None is a design change: each is in the des
 8. **The same for every item.** Done: the World tab lists units, things, rules, named scopes, events and packages. Tapping one shows it in words (a thing's links in and out, its events and the rules that name it, directly or through a named scope; a rule read back in plain English; a package's members) and **View text** with the same Copy / Export / Export package. This also covers items 3 and 4 in part: a thing shows the rules that name it, and rules can be opened on their own. Not yet the full tree (what reaches it, worked out at a date).
 9. **Keys you don't know.** References (link ends, condition targets, roles) must be keys in slice 0; labels resolve only in headers. Owner asked what happens when you don't know the key. Answered; see the reply in the session. Candidate: resolve references by label as well, writing the key back (`text-format-and-csv.md` §3, the same rule as headers; authoring v2 "resolve on entry").
 
+Added 12 Nov 2026, from checking on a desktop:
+
+10. **A rule should link to the units it lands on.** A rule's page shows the things it names (Nuln), not the units it reaches through them. Slice 1 candidate: at a chosen read date, list the units it **applies** to, each with its route. **Don't list every unit it doesn't match** (owner): that gets out of hand as the world grows. To ask "why not?" about others, pick them directly, or narrow the unit list with a filter (an advanced option) over units and their links (e.g. raised at somewhere in Averland, member of the Gunnery School), then show the tree for those. Design: `rules-overlay.md` §9 (the test view: protagonists affected, grouped by roster), §13.
+11. **Things grouped by kind.** The World tab groups items by class; things should also be grouped by kind (settlement, polity, organisation, title), a thing with several kinds under each. Display only, no design question. Design: `world-structure.md` §2 (kinds), §3 (topics are display groupings).
+12. **Structural: the package is the only container (most important).** In slice 0 the device holds one flat world: every deployed item and one log. There is no manifest (the WFB stat order and default category order are constants in code), no sandbox, no manifest context and no working context. Every deployed rule is in play for every unit; its scope alone decides who it lands on. A package is only a bundle of items imported together: it records where they came from and sets the default source layer of its rules. It sets no scope, sits at no level, and isn't switched off, superseded or required (none of that is built). The E1 fixture mixes world content (places, organisations, links), system rules and a protagonist in one package only because slice 0 has nowhere else to put them; the design keeps them apart (the world or setting, the system's rules package, a roster registered in the world). **Before more is built on top, a brief needs to decide the containers:** the sandbox (the world), the manifest context or contexts in it, which packages sit in each, and where rosters live. The design docs on the manifest, packages and the library, and sandboxes aren't copied into `design/`; that brief would need to bring them over.
+
 ---
 
 ## Closing slice 0 (10 Nov 2026)
@@ -156,7 +162,8 @@ Slice 0 stops adding features here. Everything in "Owner feedback" above, apart 
 **To take to the design project:**
 - Questions for design 1–8 below (9 decided by the owner).
 - The verdict on the YAML text shape (keep / change / drop).
-- Owner feedback items not done, as slice 1 candidates: references by label; attach a rule at a thing (§6 shorthand); the full tree at a date (what reaches a thing); pin or swap order from the card; shorter derivation wording; choosing a thing's kind in a scope; fixtures split into world / rules / army / log.
+- **First, the containers (feedback 12):** sandbox, manifest context(s), packages, rosters. This shapes everything after it.
+- Owner feedback items not done, as slice 1 candidates: a rule's page listing the units it lands on, with a filter for "why not?" (10); things grouped by kind (11); references by label; attach a rule at a thing (§6 shorthand); the full tree at a date (what reaches a thing); pin or swap order from the card; shorter derivation wording; choosing a thing's kind in a scope; fixtures split into world / rules / army / log.
 
 ---
 
