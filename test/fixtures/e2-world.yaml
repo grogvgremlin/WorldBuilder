@@ -1,0 +1,22 @@
+# E2 world: Handgunners raised at Nuln, which is in Wissenland.
+
+sandbox: [E2 Order by depth, e2]
+
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6
+    packages: [wfb6_base, e2_rules]
+
+things:
+  - [Nuln, nuln, [settlement, polity]]
+  - [Wissenland, wissenland, [polity]]
+
+links:
+  - [nuln, in, wissenland, 2000]
+
+units:
+  - unit: [Nuln Handgunners, nuln_handgunners]
+    raised: 2520
+    profile: [3, 3, 3, 3, 3, 1, 3, 1, 7]
+    links:
+      - [raised_at, nuln]

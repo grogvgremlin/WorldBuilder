@@ -65,8 +65,8 @@ export function DataScreen({ data, snapshot, onChanged }: { data: AppData; snaps
       <h2>Start again</h2>
       <button onClick={wipe}>Wipe this device</button>
 
-      {message && <p className="muted" style={{ marginTop: 12 }}>{message}</p>}
-      <p className="muted" style={{ marginTop: 24 }}>Version {__APP_VERSION__}</p>
+      {message && <p className="muted gap-top">{message}</p>}
+      <p className="muted gap-top-lg">Version {__APP_VERSION__}</p>
     </>
   );
 }

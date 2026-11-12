@@ -1,0 +1,77 @@
+/* Design tokens: every colour, font, size, spacing and radius the screens use.
+   build/slice-1-brief.md §1.6: the look iterates, so it is changed here and nowhere else.
+   styles.css uses only these variables; screens use only classes from styles.css. */
+
+:root {
+  /* colours, light */
+  --bg: #f6f3ec;
+  --surface: #ffffff;
+  --surface-2: #efebe1;
+  --text: #1e1c18;
+  --muted: #6b665c;
+  --line: #ddd6c7;
+  --accent: #8a2c1d;
+  --accent-text: #ffffff;
+  --good: #2f6b3a;
+  --bad: #9b2c22;
+  --warn: #8a5a00;
+
+  /* type */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.9rem;
+  --text-md: 1rem;
+  --text-lg: 1.05rem;
+  --text-xl: 1.4rem;
+  --text-stat: 1.3rem;
+  --text-code: 13px;
+
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  /* shape and size */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+  --tap: 44px; /* the smallest tap target */
+  --page-width: 960px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1a17;
+    --surface: #26241f;
+    --surface-2: #302d27;
+    --text: #ece7dc;
+    --muted: #a59f92;
+    --line: #3d3a33;
+    --accent: #d8735f;
+    --accent-text: #1b1a17;
+    --good: #7cc48a;
+    --bad: #ec8b7f;
+    --warn: #e2b55a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1a17;
+  --surface: #26241f;
+  --surface-2: #302d27;
+  --text: #ece7dc;
+  --muted: #a59f92;
+  --line: #3d3a33;
+  --accent: #d8735f;
+  --accent-text: #1b1a17;
+  --good: #7cc48a;
+  --bad: #ec8b7f;
+  --warn: #e2b55a;
+  color-scheme: dark;
+}

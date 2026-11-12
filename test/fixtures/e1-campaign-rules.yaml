@@ -1,0 +1,15 @@
+# Wissenland campaign rules (slice 1 brief §2.2, C1): unpaid wages in a package of its own,
+# so a context can switch it off.
+
+package: [Wissenland campaign rules, wissenland_campaign_rules]
+edition: wfb6
+layer: campaign
+requires: [e1_rules]
+
+rules:
+  - rule: [Unpaid wages, unpaid_wages]
+    effect: [Ld, -1]
+    scope: commissioned_by_the_treasury
+    trigger: in_force(wages_withheld, withholder = wissenland_treasury)
+    nature: environment
+    category: title

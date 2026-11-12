@@ -1,21 +1,26 @@
-// The app shell: four tabs and the unit card. Screens are thin: they read a Snapshot and call
-// AppData. Design: build/slice-0-brief.md §3 "Screens".
+// The app shell: five tabs, a sandbox switch, and a back stack for opened items.
+// Screens are thin: they read a Snapshot and call AppData.
+// Design: build/slice-1-brief.md §1.4 (play screens, no editors), §2.1 (one sandbox open at a
+// time), §2.3 (display).
 
 import { useCallback, useEffect, useState } from "react";
 import type { AppData, Snapshot } from "./app-data";
 import { WorldScreen } from "./screens/WorldScreen";
+import { LibraryScreen } from "./screens/LibraryScreen";
 import { UnitScreen } from "./screens/UnitScreen";
 import { ItemScreen } from "./screens/ItemScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { LogScreen } from "./screens/LogScreen";
 import { DataScreen } from "./screens/DataScreen";
+import { itemRef, type ItemRef } from "./item-ref";
 
-type Tab = "world" | "import" | "log" | "data";
+type Tab = "world" | "library" | "import" | "log" | "data";
+const TAB_LABELS: Record<Tab, string> = { world: "World", library: "Library", import: "Import", log: "Log", data: "Data" };
 
 export function App({ data }: { data: AppData }) {
   const [tab, setTab] = useState<Tab>("world");
-  // Items opened from the World tab, newest last: "Back" returns to the one before.
-  const [opened, setOpened] = useState<string[]>([]);
+  // Items opened from the World or Library tab, newest last: "Back" returns to the one before.
+  const [opened, setOpened] = useState<ItemRef[]>([]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
   const refresh = useCallback(async () => setSnapshot(await data.snapshot()), [data]);
@@ -25,38 +30,58 @@ export function App({ data }: { data: AppData }) {
 
   if (!snapshot) return <main><p className="muted">Loading…</p></main>;
 
-  const openItem = (key: string) => {
-    setOpened([...opened, key]);
+  const openItem = (ref: ItemRef) => {
+    setOpened([...opened, ref]);
     window.scrollTo(0, 0);
   };
   const back = () => setOpened(opened.slice(0, -1));
-  const current = opened.length ? opened[opened.length - 1] : null;
-  const currentIsUnit = current !== null && snapshot.content.some((i) => i.class === "unit" && i.key === current);
-
   const goTo = (next: Tab) => {
     setOpened([]);
     setTab(next);
     window.scrollTo(0, 0);
   };
+  const switchSandbox = async (key: string) => {
+    await data.openSandbox(key);
+    setOpened([]);
+    await refresh();
+  };
+
+  const current = opened.length ? opened[opened.length - 1] : null;
+  const currentItem = current ? snapshot.all.find((i) => itemRef(i) === current) : undefined;
+  const showSandboxSwitch = (tab === "world" || tab === "log" || tab === "library") && current === null && snapshot.sandboxes.length > 0;
+  const browsing = tab === "world" || tab === "library";
 
   return (
     <>
       <main>
+        {showSandboxSwitch && (
+          <div className="topbar">
+            <span className="muted">Sandbox</span>
+            <select className="inline" value={snapshot.openSandbox ?? ""} onChange={(e) => switchSandbox(e.target.value)} aria-label="Open sandbox">
+              {snapshot.sandboxes.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {browsing && current !== null && currentItem?.class === "unit" && snapshot.openSandbox && (
+          <UnitScreen key={current} data={data} snapshot={snapshot} sandbox={snapshot.openSandbox} unitKey={currentItem.key} onBack={back} onOpenItem={openItem} onChanged={refresh} />
+        )}
+        {browsing && current !== null && currentItem?.class !== "unit" && (
+          <ItemScreen key={current} data={data} snapshot={snapshot} itemRef={current} onOpenItem={openItem} onBack={back} onChanged={refresh} />
+        )}
         {tab === "world" && current === null && <WorldScreen snapshot={snapshot} onOpenItem={openItem} onImport={() => goTo("import")} />}
-        {tab === "world" && current !== null && currentIsUnit && (
-          <UnitScreen key={current} data={data} snapshot={snapshot} unitKey={current} onBack={back} onOpenItem={openItem} onChanged={refresh} />
-        )}
-        {tab === "world" && current !== null && !currentIsUnit && (
-          <ItemScreen key={current} snapshot={snapshot} itemKey={current} onOpenItem={openItem} onBack={back} />
-        )}
+        {tab === "library" && current === null && <LibraryScreen data={data} snapshot={snapshot} onOpenItem={openItem} onChanged={refresh} />}
         {tab === "import" && <ImportScreen data={data} snapshot={snapshot} onChanged={refresh} onDeployed={() => goTo("world")} />}
         {tab === "log" && <LogScreen data={data} snapshot={snapshot} onChanged={refresh} />}
         {tab === "data" && <DataScreen data={data} snapshot={snapshot} onChanged={refresh} />}
       </main>
       <nav className="tabs">
-        {(["world", "import", "log", "data"] as Tab[]).map((name) => (
+        {(Object.keys(TAB_LABELS) as Tab[]).map((name) => (
           <button key={name} className={tab === name ? "active" : ""} onClick={() => goTo(name)}>
-            {name === "world" ? "World" : name === "import" ? "Import" : name === "log" ? "Log" : "Data"}
+            {TAB_LABELS[name]}
           </button>
         ))}
       </nav>

@@ -31,8 +31,16 @@ export const DraftLogItem = z.object({
   event: EventRecord,
 });
 
+// Where a draft deploys to: the library (a package) or one sandbox (its world and log).
+export const DraftTarget = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("library") }),
+  z.object({ kind: z.literal("sandbox"), sandbox: z.string() }),
+]);
+export type DraftTarget = z.infer<typeof DraftTarget>;
+
 export const DraftBatch = z.object({
   id: z.string(),
+  target: DraftTarget,
   label: z.string(),
   createdTime: z.string(),
   sourceText: z.string(), // the text as typed
@@ -47,14 +55,26 @@ export type DraftBatch = z.infer<typeof DraftBatch>;
 export const Meta = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
 export type Meta = z.infer<typeof Meta>;
 
-// The whole copy, as exported and re-imported.
+// The whole copy, as exported and re-imported. One log per sandbox, keyed by sandbox key.
 export const WholeCopy = z.object({
+  format: z.literal("worldbuilder-copy"),
+  version: z.literal(2),
+  exportedTime: z.string(),
+  meta: Meta,
+  logs: z.record(z.string(), z.array(LogEnvelope)),
+  content: z.array(ContentItem),
+  drafts: z.array(DraftBatch),
+});
+export type WholeCopy = z.infer<typeof WholeCopy>;
+
+// Slice 0's copy, read only to bring it forward (store/migrate.ts). Items are loose on purpose.
+export const WholeCopyV1 = z.object({
   format: z.literal("worldbuilder-copy"),
   version: z.literal(1),
   exportedTime: z.string(),
   meta: Meta,
   entries: z.array(LogEnvelope),
-  content: z.array(ContentItem),
-  drafts: z.array(DraftBatch),
+  content: z.array(z.record(z.string(), z.unknown())),
+  drafts: z.array(z.unknown()),
 });
-export type WholeCopy = z.infer<typeof WholeCopy>;
+export type WholeCopyV1 = z.infer<typeof WholeCopyV1>;

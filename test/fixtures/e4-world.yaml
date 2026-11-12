@@ -1,0 +1,34 @@
+# E4 world: Grenzstadt passes from Averland to Stirland in 2523; the blight ends the spinach in 2524.
+
+sandbox: [E4 Grenzstadt, e4]
+
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6
+    packages: [wfb6_base, e4_rules]
+
+things:
+  - [Grenzstadt, grenzstadt, [settlement]]
+  - [Averland, averland, [polity]]
+  - [Stirland, stirland, [polity]]
+  - [Elector of Averland, elector_of_averland, [title]]
+  - [Elector of Stirland, elector_of_stirland, [title]]
+
+links:
+  - [grenzstadt, in, averland, 2400, 2523]
+  - [grenzstadt, in, stirland, 2523]
+  - [grenzstadt, ruled_by, elector_of_averland, 2400, 2523]
+  - [grenzstadt, ruled_by, elector_of_stirland, 2523]
+
+events:
+  - event: [Spinach grows in Averland, averland_spinach]
+    kind: spinach_harvest
+    roles: {where: averland}
+    period: [2400, 2524]   # the blight ends it in 2524
+
+units:
+  - unit: [Grenzstadt Spearmen, grenzstadt_spearmen]
+    raised: 2520
+    profile: [4, 3, 3, 3, 3, 1, 3, 1, 7]
+    links:
+      - [raised_at, grenzstadt]

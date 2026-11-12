@@ -4,6 +4,54 @@ Running record of the build: technical choices (with one line of why), the text 
 
 ---
 
+## Slice 1 status (12 Nov 2026)
+
+Built in parts, in the brief's order (§0). **Part A is done; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
+
+| Part | State |
+|---|---|
+| **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container and orders read from the manifest. **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
+| **B** Army list and roster builder | Waiting on army data |
+| **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
+
+### What Part A built
+- **Containers** (brief §2.1): the **library** and each **sandbox** are content spaces; keys are unique within a space. The **manifest** (stat order, category order per step, bag order) is content in the WFB 6th base package. A **sandbox** holds one world and its own log. A **manifest context** names its manifest and the library packages switched on in it, in order. A unit reads in its context (its own `context:`, or the sandbox's first).
+- **A rule is in play only if its package is on in the unit's context** (C1). A rule from a package listed but switched off shows as "not in play: package off in this context", with who switched it and when. Rules from packages not in the context aren't shown.
+- **GM fixes are dated log entries in the sandbox's log**, withdrawable (brief §1.2): `package_switch`, `category_order` (macro, per context and step) and `pin` (micro, one pair on one value, for one unit or every unit). The derivation shows them: "order organisation → place → title, set for this context by owner, 2026-11-12"; "pinned: Nuln civic pride before Gunnery School (owner, 2026-11-12)".
+- **Q2, Q3, Q5** as answered: the ordering detail is in the derivation text with what reversing would give; the category order has three ranks; the bag order comes from the manifest.
+- **Display feedback** (brief §2.3): things grouped by kind; a thing's tree at a read date (what it reaches, what reaches it, the rules naming it); a rule's page lists only the units it applies to, with a filter (name, link, target, "or anywhere inside it") to ask "why not?" about others; the kind a scope read shows in the derivation ("Nuln (settlement · polity), read as place"); references by label on import.
+- **Screens**: a sandbox switch; a **Library** tab (packages, manifests, and each context's packages with Switch on / off, category order with Change / Back to default, pins with Remove); the unit card offers **Pin this order** and **Swap** on any adjacent pair whose order changes the value. Design tokens are in `src/ui/tokens.css`; no styles inline in screens (brief §1.6).
+- **Migration**: slice 0's stored data (IndexedDB version 1) and exported copies are brought forward on open / import: the world into a sandbox "slice0", rules into the library, a WFB 6th manifest added, one context with every old package switched on. Old drafts are dropped.
+
+### Technical choices (slice 1)
+| Choice | Why |
+|---|---|
+| Content keyed by (space, key); `space` is "library" or a sandbox key | Two sandboxes can each have their own Nuln; the library is one namespace (v2-reconciliation §3, author-defined keys). |
+| One log per sandbox: the sandbox is the log's partition (IndexedDB index on it), not a field inside the seal | Keeps the sealed envelope as infra §5.1 says; a server will order each sandbox's log separately. |
+| IndexedDB version 2 (`logs`, `items`), migrating version 1 inside the upgrade | The owner's phone keeps its slice 0 data. |
+| Whole copy version 2 (`logs` by sandbox); version 1 copies are migrated on import | Old exports still load. |
+| GM fixes have no in-world date; the latest accepted entry per context (and step, or pair) wins | They are out-of-fiction fixes (rules-overlay §9: errata and house rules follow §8's order, not chronology). See question 13. |
+| A pin moves its first rule just before the other within one step and target point, and takes both out of the bag | The GM has decided their order, so no clash notice for that pair. |
+| Pin and swap are offered only for adjacent pairs whose order changes the value | Pinning a commuting pair changes nothing. |
+| Fix dates in derivations are the recorded day (`2026-11-12`), not a localised date | Keeps the resolver's output the same on every device. |
+| No manifest found → built-in WFB orders, with a warning on the card | A sandbox still resolves while its base package is missing. |
+| Library rules may name things by bare key; a key-like name no sandbox has is accepted quietly | Library packages are world-agnostic; a sandbox may be loaded later. See question 10. |
+| Test worlds are sets of files (`test/fixtures/sets.json`), loaded as drafts and deployed in order with "Deploy all" | Imports still land in drafts first (text-format §1); later files see what earlier ones deployed. |
+| A thing's tree walks links on at the read date, each thing once by its shortest route, at most 8 hops | Readable, and stops runaway walks in big worlds. |
+| `src/ui/tokens.css` holds every colour, type size, spacing and radius; two columns above 760px | Brief §1.6: the look iterates; world views desktop-first, lists phone-first. |
+
+### The text shape, slice 1
+World content and rules now go in **different files**: a file starting `package:` is a library package (rules, named scopes, a manifest); a file starting `sandbox:` is a world (contexts, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.
+
+### Questions for design (slice 1)
+10. **Library rules name sandbox things by bare key.** A library rule says `reaches(nuln, …)`; each sandbox reads `nuln` in its own world. v2-reconciliation §3 says cross-namespace references carry a prefix and a bare key works inside its own namespace. Built as: bare keys in library rules resolve in the sandbox that reads them. Is that intended, or should a library rule reach world things another way (template slots, a setting package)?
+11. **Where campaign packages live.** C1's "Wissenland campaign rules" is built as a library package, switched on in E1's context. Should a campaign's own rules live in its sandbox instead (campaign-loop §12.3's "campaign-local package")? Built: packages only in the library.
+12. **Named scopes in both places.** Built: a named scope can be in a library package (with the rules that use it) or in a sandbox. Right?
+13. **Package switches and the read date.** A switch applies at every read date (out of fiction). Should a GM be able to switch a package on from an in-world date (a campaign rule that only starts in 2524)? Today that's a rule trigger's job.
+14. **Pins across steps.** A pin between rules in different steps or target points is ignored (it can't change their order). Right?
+
+---
+
 ## Slice 0 status (10 Nov 2026)
 
 | Done-when item (brief §5) | State |
@@ -58,6 +106,8 @@ Checked in a headless phone-sized browser against the production build: load E1 
 ---
 
 ## The text shape for world items (proposal, brief §3)
+
+_Superseded by slice 1 Part A (package files and sandbox files): see `build/yaml-guide.md`. Kept as history._
 
 The design has no text shape yet for world things, links, events, named scopes or scope + trigger rules. This follows `text-format-and-csv.md` §1–3: valid YAML, short positional tuples, `(label, key)` headers, keys written back, one file = one package. Worked examples: `test/fixtures/*.yaml`.
 
@@ -140,6 +190,12 @@ Candidates for the next slice brief. None is a design change: each is in the des
 8. **The same for every item.** Done: the World tab lists units, things, rules, named scopes, events and packages. Tapping one shows it in words (a thing's links in and out, its events and the rules that name it, directly or through a named scope; a rule read back in plain English; a package's members) and **View text** with the same Copy / Export / Export package. This also covers items 3 and 4 in part: a thing shows the rules that name it, and rules can be opened on their own. Not yet the full tree (what reaches it, worked out at a date).
 9. **Keys you don't know.** References (link ends, condition targets, roles) must be keys in slice 0; labels resolve only in headers. Owner asked what happens when you don't know the key. Answered; see the reply in the session. Candidate: resolve references by label as well, writing the key back (`text-format-and-csv.md` §3, the same rule as headers; authoring v2 "resolve on entry").
 
+Added 12 Nov 2026, from checking on a desktop:
+
+10. **A rule should link to the units it lands on.** A rule's page shows the things it names (Nuln), not the units it reaches through them. Slice 1 candidate: at a chosen read date, list the units it **applies** to, each with its route. **Don't list every unit it doesn't match** (owner): that gets out of hand as the world grows. To ask "why not?" about others, pick them directly, or narrow the unit list with a filter (an advanced option) over units and their links (e.g. raised at somewhere in Averland, member of the Gunnery School), then show the tree for those. Design: `rules-overlay.md` §9 (the test view: protagonists affected, grouped by roster), §13.
+11. **Things grouped by kind.** The World tab groups items by class; things should also be grouped by kind (settlement, polity, organisation, title), a thing with several kinds under each. Display only, no design question. Design: `world-structure.md` §2 (kinds), §3 (topics are display groupings).
+12. **Structural: the package is the only container (most important).** In slice 0 the device holds one flat world: every deployed item and one log. There is no manifest (the WFB stat order and default category order are constants in code), no sandbox, no manifest context and no working context. Every deployed rule is in play for every unit; its scope alone decides who it lands on. A package is only a bundle of items imported together: it records where they came from and sets the default source layer of its rules. It sets no scope, sits at no level, and isn't switched off, superseded or required (none of that is built). The E1 fixture mixes world content (places, organisations, links), system rules and a protagonist in one package only because slice 0 has nowhere else to put them; the design keeps them apart (the world or setting, the system's rules package, a roster registered in the world). **Before more is built on top, a brief needs to decide the containers:** the sandbox (the world), the manifest context or contexts in it, which packages sit in each, and where rosters live. The design docs on the manifest, packages and the library, and sandboxes aren't copied into `design/`; that brief would need to bring them over.
+
 ---
 
 ## Closing slice 0 (10 Nov 2026)
@@ -147,16 +203,17 @@ Candidates for the next slice brief. None is a design change: each is in the des
 Slice 0 stops adding features here. Everything in "Owner feedback" above, apart from items done, goes to the slice 1 brief.
 
 **Left for the owner to check on the iPhone** (a failure here is fixed in slice 0; anything else waits):
-- [ ] Installed from https://grogvgremlin.github.io/WorldBuilder/ (Share → Add to Home Screen)
-- [ ] Opens with Airplane Mode on
-- [ ] E1 still there after a few days; Data tab says storage is persistent
-- [ ] Round trip on the phone: Export → Files → Wipe → import → same values
-- [ ] E1: withdraw / add again flips Ld 7 → 8 → 7, derivation explains it
+- [x] Installed from https://grogvgremlin.github.io/WorldBuilder/ (Share → Add to Home Screen)
+- [x] Opens with Airplane Mode on
+- [x] E1 still there after a few days; Data tab says storage is persistent
+- [x] Round trip on the phone: Export → Files → Wipe → import → same values  - user: tested for 2 days
+- [x] E1: withdraw / add again flips Ld 7 → 8 → 7, derivation explains it
 
 **To take to the design project:**
 - Questions for design 1–8 below (9 decided by the owner).
 - The verdict on the YAML text shape (keep / change / drop).
-- Owner feedback items not done, as slice 1 candidates: references by label; attach a rule at a thing (§6 shorthand); the full tree at a date (what reaches a thing); pin or swap order from the card; shorter derivation wording; choosing a thing's kind in a scope; fixtures split into world / rules / army / log.
+- **First, the containers (feedback 12):** sandbox, manifest context(s), packages, rosters. This shapes everything after it.
+- Owner feedback items not done, as slice 1 candidates: a rule's page listing the units it lands on, with a filter for "why not?" (10); things grouped by kind (11); references by label; attach a rule at a thing (§6 shorthand); the full tree at a date (what reaches a thing); pin or swap order from the card; shorter derivation wording; choosing a thing's kind in a scope; fixtures split into world / rules / army / log.
 
 ---
 
@@ -165,11 +222,32 @@ Slice 0 stops adding features here. Everything in "Owner feedback" above, apart 
 Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.
 
 1. **Target points across steps.** Built as: every statline edit first (origin step, then stationed), then every in-line edit (origin, then stationed), then every end edit. That follows `resolver.md` §5.2 ("statline steps → in-line → end" over the whole path). `rules-overlay.md` §8 lists target point as the first key *within* a step, which could instead mean origin (statline → in-line → end) then stationed (statline → in-line → end). The two differ only for a statline or end edit in the stationed step. Which is meant?
-2. **When does a clash notice fire?** Built as: only when nothing decided the order (step 5, the bag) and swapping changes the result. When the category or depth decides a non-commuting pair (E1: Nuln +1 then the School `= 8` → 8; reversed 9), no notice is raised; the derivation shows "swapped with the step before: 9" as information. `resolver.md` §5.6 (1) would raise a notice for any non-commuting pair from different packages. Should a decided order still raise one?
-3. **"place → organisation / title".** Built as two ranks: place first, then organisation and title sharing a rank. Or is it three ranks: place → organisation → title?
+2. **When does a clash notice fire?** Built as: only when nothing decided the order (step 5, the bag) and swapping changes the result. When the category or depth decides a non-commuting pair (E1: Nuln +1 then the School `= 8` → 8; reversed 9), no notice is raised; the derivation shows "swapped with the step before: 9" as information. `resolver.md` §5.6 (1) would raise a notice for any non-commuting pair from different packages. Should a decided order still raise one? (- user: decided order is fine to not raise.  the ordering detail should make it into the derivation text)
+3. **"place → organisation / title".** Built as two ranks: place first, then organisation and title sharing a rank. Or is it three ranks: place → organisation → title? (- user: it is three, but mainly because an organisation should grant a title.  As with everything else is should be macro and micro configurable)
 4. **Depth when only some rules share a chain.** Built as: depth orders a group only if every rule in it has a route, all routes lie on one chain, and no two depths are equal. Otherwise the whole group goes to the bag. Is a partial ordering wanted instead (depth for the rules that share a chain, the bag for the rest)?
-5. **Where sets go in a bag.** `resolver.md` §5.3 says add before multiply and caps and floors after, but not where a set goes. Built as set → add → multiply → cap → floor.
-6. **Named scopes and depth.** A named scope is treated as "a scope that names no thing" (no depth; straight to category, then the bag). Right?
-7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things?
-8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"?
+5. **Where sets go in a bag.** `resolver.md` §5.3 says add before multiply and caps and floors after, but not where a set goes. Built as set → add → multiply → cap → floor. (- user: Yes.  As with everything else is should be macro and micro configurable)
+6. **Named scopes and depth.** A named scope is treated as "a scope that names no thing" (no depth; straight to category, then the bag). Right? (- user: Yes although need some examples)
+7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things? (- user: don't understand. "does X rule Y now?" is a hook and we shoudl have that covered)
+8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"? (user: need a tangible example)
 9. **Read date before the raising date.** ~~Should the card say "not yet raised"?~~ **Owner decision (10 Nov):** yes. Read before its raising date, a unit reads nothing from the world: the card says "Not raised until 2520" and shows the printed profile, greyed, with no rules (`UnitResolution.notYetRaised`; tested in E1). To carry back to the design project.
+
+**Still open:** 1 and 4 have no answer yet.
+
+### Examples asked for (12 Nov)
+
+**6. Named scopes and depth.** Two origin rules, both category place, on Handgunners raised at Nuln (Nuln is *in* Wissenland):
+- Nuln civic pride `Ld +1`, scope `reaches(nuln, raised_at > in*)`: Nuln is 0 hops up the unit's chain.
+- Wissenland discipline `Ld = 7 @inline`, scope written **directly** as `reaches(wissenland, raised_at > in*)`: Wissenland is 1 hop up. Depth decides: Wissenland first, Nuln later → **8**. This is E2.
+- Now write Wissenland discipline's scope as a **named scope** "raised in Wissenland" whose query is that same `reaches(…)`. Built as: a named scope names no thing, so it has no depth. The pair falls to the bag (set before add) → still 8 here, **with a clash notice** ("8 as ordered, 7 if reversed").
+- The question: should a named scope that is a single `reaches` to one thing carry that thing's depth, so it orders the same as writing it directly?
+
+**7. "While the Elector holds Grenzstadt".** Agreed, it's a hook: "the Elector of Averland rules Grenzstadt". The question is what the hook's **condition** is written with. §17 gives three nodes: `reaches` (starts from the unit), `value(…)` and `in force(…)`. "The Elector rules Grenzstadt" is a link between two named things, and neither is the unit. Ways to write it:
+- **(a) Through the unit**, as built: `reaches(elector_of_averland, raised_at > ruled_by)`. It works only because these units were raised at Grenzstadt; a unit raised elsewhere can't use the same hook.
+- **(b) As an event in force:** model the holding as a period that holds the link (`world-structure.md` §7: a reign holds a link package), then `in force(elector_rules_grenzstadt)`.
+- **(c) A new node** that tests a link between two named things at the date, e.g. `linked(grenzstadt, ruled_by, elector_of_averland)`.
+- Which is intended?
+
+**8. Entry status inside the seal.** Bea, a player, is offline. She buys a sword: her device appends an entry, status **awaiting host**, inside the seal. Next day she syncs; the GM's device (the host) accepts it. Where is "accepted" recorded, given nothing is edited in place and status is inside the seal?
+- **(a) An acceptance entry:** the host appends a new entry, "accepted Bea's entry X", with its own host sequence number. Bea's entry is never touched; its status is worked out from the entries that follow, as withdrawal is now.
+- **(b) The host sequence number:** the host stamps a number on Bea's entry's **envelope** (outside the seal, so no unsealing needed). Having a number means accepted. The sealed part is untouched, but the envelope is changed in place.
+- Which is intended?

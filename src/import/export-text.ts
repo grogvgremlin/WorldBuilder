@@ -1,11 +1,28 @@
 // Writing content back out as text, in one canonical form that re-imports exactly.
 // Design: design/text-format-and-csv.md §1 ("one canonical form on export"), §6 (export and
 // round trip: keys included, so an export re-imports exactly; only changed entries show as
-// edits). The shape is the slice-0 text format (build/yaml-guide.md).
+// edits); build/slice-1-brief.md §2.1 (a library package file, or a sandbox file). The shape
+// is the text format in build/yaml-guide.md.
 
-import type { ContentItem, EventRecord, Link, NamedScope, NumberEdit, Package, Rule, Thing, Unit, WorldEvent } from "../schema";
+import type {
+  CategoryRanks,
+  ContentItem,
+  EventRecord,
+  Link,
+  Manifest,
+  ManifestContext,
+  NamedScope,
+  NumberEdit,
+  Package,
+  Rule,
+  Sandbox,
+  Thing,
+  Unit,
+  WorldEvent,
+} from "../schema";
 import { expressionToText } from "./expression-text";
-import { STAT_ORDER } from "./text-format";
+
+export type Container = Package | Sandbox;
 
 // --- Values -------------------------------------------------------------------------------
 
@@ -61,13 +78,16 @@ function linkLine(link: Link): string {
   return "  - [" + parts.join(", ") + ", " + link.start + (link.end === null ? "" : ", " + link.end) + "]";
 }
 
-function unitBlock(unit: Unit, ownLinks: Link[]): string[] {
+// A profile as a list in the manifest's stat order when it has exactly those stats, else a map.
+function unitBlock(unit: Unit, ownLinks: Link[], statOrder: string[] | null): string[] {
   const stats = Object.keys(unit.profile);
-  const isFullList = stats.length === STAT_ORDER.length && STAT_ORDER.every((stat) => stat in unit.profile);
+  const isFullList = statOrder !== null && stats.length === statOrder.length && statOrder.every((stat) => stat in unit.profile);
   const profile = isFullList
-    ? "[" + STAT_ORDER.map((stat) => unit.profile[stat]).join(", ") + "]"
+    ? "[" + statOrder.map((stat) => unit.profile[stat]).join(", ") + "]"
     : "{" + stats.map((stat) => stat + ": " + unit.profile[stat]).join(", ") + "}";
-  const lines = ["  - unit: " + header(unit.label, unit.key), "    raised: " + unit.raised, "    profile: " + profile];
+  const lines = ["  - unit: " + header(unit.label, unit.key), "    raised: " + unit.raised];
+  if (unit.context) lines.push("    context: " + yamlText(unit.context));
+  lines.push("    profile: " + profile);
   if (ownLinks.length > 0) lines.push("    links:", ...ownLinks.map((link) => "      " + unitLinkTuple(link, unit.raised)));
   return lines;
 }
@@ -104,16 +124,50 @@ function eventBlock(event: EventRecord | WorldEvent): string[] {
   return lines;
 }
 
-// --- Whole files ---------------------------------------------------------------------------------
+// --- Containers ------------------------------------------------------------------------------
 
-function packageHeader(pkg: Package): string[] {
-  return ["package: " + header(pkg.label, pkg.key), "layer: " + pkg.sourceLayer];
+function ranksText(ranks: CategoryRanks): string {
+  return "[" + ranks.map((rank) => (rank.length === 1 ? rank[0] : "[" + rank.join(", ") + "]")).join(", ") + "]";
 }
 
-type SectionName = "things" | "links" | "units" | "scopes" | "rules" | "events";
+// A manifest is written at the top of its package file, under the package header.
+function manifestBlock(manifest: Manifest): string[] {
+  return [
+    "manifest: " + header(manifest.label, manifest.key),
+    "stats: [" + manifest.statOrder.join(", ") + "]",
+    "category_order:",
+    "  origin: " + ranksText(manifest.categoryOrder.origin),
+    "  stationed: " + ranksText(manifest.categoryOrder.stationed),
+    "bag_order: [" + manifest.bagOrder.join(", ") + "]",
+  ];
+}
+
+function contextBlock(context: ManifestContext): string[] {
+  return [
+    "  - context: " + header(context.label, context.key),
+    "    manifest: " + yamlText(context.manifest),
+    "    packages: [" + context.packages.map(yamlText).join(", ") + "]",
+  ];
+}
+
+function containerHeader(container: Container): string[] {
+  if (container.class === "sandbox") return ["sandbox: " + header(container.label, container.key)];
+  const lines = ["package: " + header(container.label, container.key)];
+  if (container.edition) lines.push("edition: " + yamlText(container.edition));
+  lines.push("layer: " + container.sourceLayer);
+  if (container.requires.length) lines.push("requires: [" + container.requires.map(yamlText).join(", ") + "]");
+  if (container.conflicts.length) lines.push("conflicts: [" + container.conflicts.map(yamlText).join(", ") + "]");
+  return lines;
+}
+
+// --- Sections ---------------------------------------------------------------------------------
+
+type SectionName = "contexts" | "things" | "links" | "units" | "scopes" | "rules" | "events";
 
 function sectionOf(item: ContentItem): SectionName | null {
   switch (item.class) {
+    case "context":
+      return "contexts";
     case "thing":
       return "things";
     case "link":
@@ -127,16 +181,30 @@ function sectionOf(item: ContentItem): SectionName | null {
     case "event":
       return "events";
     default:
-      return null;
+      return null; // manifests go in the header; packages and sandboxes are the header
   }
 }
 
+// The stat order for a unit: its context's manifest, looked up in all content.
+function statOrderFinder(content: ContentItem[]) {
+  return (unit: Unit): string[] | null => {
+    const contexts = content.filter((i): i is ManifestContext => i.class === "context" && i.space === unit.space);
+    const context = contexts.find((c) => c.key === unit.context) ?? contexts[0];
+    const manifest = content.find((i): i is Manifest => i.class === "manifest" && i.key === context?.manifest);
+    return manifest?.statOrder ?? null;
+  };
+}
+
 // Sections in the order their first item appears; items in the order given, so a re-import
-// keeps the package's written order. A unit's own links are written under it.
-function sections(items: ContentItem[]): string[] {
+// keeps the written order. A unit's own links are written under it. A manifest goes first.
+function sections(items: ContentItem[], content: ContentItem[]): string[] {
   const units = new Map(items.filter((i): i is Unit => i.class === "unit").map((u) => [u.key, u]));
   const linksOfUnit = (key: string) => items.filter((i): i is Link => i.class === "link" && i.from === key);
   const isUnitLink = (item: ContentItem) => item.class === "link" && units.has(item.from);
+  const statOrderOf = statOrderFinder(content.length ? content : items);
+
+  const lines: string[] = [];
+  for (const manifest of items.filter((i): i is Manifest => i.class === "manifest")) lines.push(...manifestBlock(manifest));
 
   const order: SectionName[] = [];
   const blocks = new Map<SectionName, string[][]>();
@@ -147,10 +215,8 @@ function sections(items: ContentItem[]): string[] {
       order.push(name);
       blocks.set(name, []);
     }
-    blocks.get(name)!.push(blockFor(item, linksOfUnit));
+    blocks.get(name)!.push(blockFor(item, linksOfUnit, statOrderOf));
   }
-
-  const lines: string[] = [];
   for (const name of order) {
     lines.push("", name + ":");
     blocks.get(name)!.forEach((block, i) => {
@@ -161,14 +227,16 @@ function sections(items: ContentItem[]): string[] {
   return lines;
 }
 
-function blockFor(item: ContentItem, linksOfUnit: (key: string) => Link[]): string[] {
+function blockFor(item: ContentItem, linksOfUnit: (key: string) => Link[], statOrderOf: (unit: Unit) => string[] | null): string[] {
   switch (item.class) {
+    case "context":
+      return contextBlock(item);
     case "thing":
       return [thingLine(item)];
     case "link":
       return [linkLine(item)];
     case "unit":
-      return unitBlock(item, linksOfUnit(item.key));
+      return unitBlock(item, linksOfUnit(item.key), statOrderOf(item));
     case "scope":
       return scopeBlock(item);
     case "rule":
@@ -180,30 +248,38 @@ function blockFor(item: ContentItem, linksOfUnit: (key: string) => Link[]): stri
   }
 }
 
+// --- Whole files -------------------------------------------------------------------------------
+
+// The members of a package or sandbox that still belong to it, in written order.
+function membersOf(container: Container, content: ContentItem[]): ContentItem[] {
+  const inSpace = new Map(content.filter((i) => i.space === container.space).map((i) => [i.key, i]));
+  return container.members.map((key) => inSpace.get(key)).filter((item): item is ContentItem => !!item && item.package === container.key);
+}
+
 // One rule as a file that re-imports into its own package without changing anything else.
 export function ruleToText(rule: Rule, pkg: Package | undefined): string {
   return itemToText(rule, pkg, []);
 }
 
-// Any one item as a file that re-imports into its own package without changing anything else.
-// A unit comes with its own links from the same package; a package gives the whole package.
-export function itemToText(item: ContentItem, pkg: Package | undefined, content: ContentItem[]): string {
-  if (item.class === "package") return packageToText(item, content);
+// Any one item as a file that re-imports into its own package or sandbox without changing
+// anything else. A unit comes with its own links; a package or sandbox gives the whole of it.
+export function itemToText(item: ContentItem, container: Container | undefined, content: ContentItem[]): string {
+  if (item.class === "package" || item.class === "sandbox") return containerToText(item, content);
+  const members = container ? membersOf(container, content) : [];
   const ownLinks =
     item.class === "unit"
-      ? content
-          .filter((other): other is Link => other.class === "link" && other.from === item.key && other.package === item.package)
-          .sort((a, b) => (pkg?.members.indexOf(a.key) ?? 0) - (pkg?.members.indexOf(b.key) ?? 0)) // as written
+      ? members.filter((other): other is Link => other.class === "link" && other.from === item.key) // in written order
       : [];
-  const head = pkg ? packageHeader(pkg) : [];
-  return [...head, ...sections([item, ...ownLinks])].join("\n").replace(/^\n/, "") + "\n";
+  const head = container ? containerHeader(container) : [];
+  return [...head, ...sections([item, ...ownLinks], content)].join("\n").replace(/^\n/, "") + "\n";
 }
 
-// A whole package: every item that belongs to it, in its written order.
-// A unit's links are written under the unit, as typed.
+// A whole package or sandbox: every item that belongs to it, in its written order.
 // Log entries are not content, so they are not included.
+export function containerToText(container: Container, content: ContentItem[]): string {
+  return [...containerHeader(container), ...sections(membersOf(container, content), content)].join("\n") + "\n";
+}
+
 export function packageToText(pkg: Package, content: ContentItem[]): string {
-  const byKey = new Map(content.map((item) => [item.key, item]));
-  const members = pkg.members.map((key) => byKey.get(key)).filter((item): item is ContentItem => !!item && item.package === pkg.key);
-  return [...packageHeader(pkg), ...sections(members)].join("\n") + "\n";
+  return containerToText(pkg, content);
 }

@@ -1,0 +1,22 @@
+# E4 rules (design/test-corpus-v2.md E4, first part).
+# Spinach is origin: read as of raising, so it's kept after Grenzstadt passes to Stirland.
+# "+1 Ld while the Elector holds Grenzstadt" is environment: read now, so it stops in 2523.
+
+package: [E4 rules, e4_rules]
+edition: wfb6
+layer: book
+
+rules:
+  - rule: [Extra training spinach, averland_spinach_strength]
+    effect: [S, +1]
+    scope: reaches(averland, raised_at > in*)
+    trigger: in_force(spinach_harvest, where = averland)
+    nature: origin
+    category: place
+
+  - rule: [Averland levy, averland_levy_while_elector_holds]
+    effect: [Ld, +1]
+    scope: reaches(grenzstadt, raised_at)
+    trigger: reaches(elector_of_averland, raised_at > ruled_by)
+    nature: environment
+    category: title

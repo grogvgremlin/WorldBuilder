@@ -1,40 +1,51 @@
-// The quick text format for slice 0: valid YAML with short tuples, read into content items.
-// Design: design/text-format-and-csv.md §1 (principles: imports never block, problems per line,
-// keys never regenerated), §2 (YAML with positional tuples; profile in manifest stat order;
-// number edits `[S, +1]`, `[WS, =3, statline]`; a set must state its target point),
-// §3 (a written key wins; otherwise match the label once, else a new key; keys written back).
-// World things, links, events, named scopes and scope + trigger rules have no text shape in the
-// design yet: the shape below is the slice-0 proposal, recorded in build/build-log.md.
+// The quick text format: valid YAML with short tuples, read into content items.
+// Design: design/text-format-and-csv.md §1 (imports never block; problems per line), §2 (YAML
+// with positional tuples), §3 (keys: a written key wins; otherwise match the label once; keys
+// written back; slice 1: references may be labels too); build/slice-1-brief.md §2.1 (world
+// content belongs to a sandbox, rules to library packages; the manifest is content).
+// The shapes are proposals, recorded in build/build-log.md and explained in build/yaml-guide.md.
 //
-// A file is one package:
+// A file is one of two kinds, set by its header:
 //
-//   package: [E1 Handgunners, e1]        (label, key)
-//   layer: book                          source layer of its rules (default book)
+//   package: [E1 rules, e1_rules]           a LIBRARY package: rules, named scopes, a manifest
+//   edition: wfb6                           the manifest it belongs to
+//   layer: book                             source layer of its rules (default book)
+//   requires: [wfb6_base]   conflicts: []   warnings only
+//   manifest: [WFB 6th edition, wfb6]       optional: this package defines a manifest, with
+//   stats: [M, WS, ...]  category_order: {origin: [...], stationed: [...]}  bag_order: [...]
+//   scopes:   - scope: [label, key]  query: reaches(...)
+//   rules:    - rule: [label, key]  effect: [Ld, +1]  scope: ...  trigger: ...  nature  category
+//
+//   sandbox: [E1 Nuln, e1]                  a SANDBOX: one world and its log
+//   contexts: - context: [WFB 6th, wfb6]  manifest: wfb6  packages: [wfb6_base, e1_rules]
 //   things:   - [Nuln, nuln, [settlement, polity]]          (label, key, kinds)
 //   links:    - [nuln, in, wissenland, 2000]                 (from, kind, to, start, end)
-//   units:    - unit: [Nuln Handgunners, nuln_handgunners]
-//               raised: 2520
-//               profile: [3, 3, 3, 3, 3, 1, 3, 1, 7]          (M WS BS S T W I A Ld)
-//               links: - [raised_at, nuln]                    (kind, to, start, end)
-//   scopes:   - scope: [commissioned by the treasury, ...]
-//               query: reaches(wissenland_treasury, serves > paid_by)
-//   rules:    - rule: [Nuln civic pride, nuln_civic_pride]
-//               effect: [Ld, +1]                              (stat, edit, target point)
-//               scope: reaches(nuln, raised_at > in*)
-//               trigger: in_force(...)                        (optional)
-//               nature: origin | environment
-//               category: place
+//   units:    - unit: [label, key]  raised: 2520  context: wfb6  profile: [...]  links: [...]
 //   events:   - event: [label, key]  kind: ...  roles: {...}  period: [start, end]
-//   log:      - same as events; appended to the log as event entries on deploy
+//   log:      - same as events; appended to the sandbox's log on deploy
+//   scopes:   as above (a named scope can live with the world too)
 
-import { isMap, isScalar, isSeq, LineCounter, parseDocument, type Node as YamlNode, type YAMLMap } from "yaml";
-import type { ContentItem, EventRecord, Expression, NumberEdit, Problem, SourceLayer } from "../schema";
-import { parseExpression } from "./expression-text";
+import { isMap, isSeq, LineCounter, parseDocument, type Node as YamlNode, type YAMLMap } from "yaml";
+import type { CategoryRanks, ContentItem, EditKind, EventRecord, Expression, ManifestContext, Problem, SourceLayer } from "../schema";
+import { conditionRefs, expressionToText, parseExpression } from "./expression-text";
+import {
+  DEFAULT_STAT_ORDER,
+  listOf,
+  numberOf,
+  rangeOf,
+  readEffect,
+  readHeader,
+  Reader,
+  textOf,
+  wordsOf,
+  type Header,
+} from "./text-values";
 
-// The manifest stat order for profiles written as a list (WFB).
-export const STAT_ORDER = ["M", "WS", "BS", "S", "T", "W", "I", "A", "Ld"];
+export { slugify, DEFAULT_STAT_ORDER } from "./text-values";
 
-// One item read from the text, with the line it started on.
+export type FileKind = "package" | "sandbox";
+
+// One item read from the text, with the line it started on. Its space is filled in later.
 export interface ParsedItem {
   line: number | null;
   item: ContentItem;
@@ -47,171 +58,71 @@ export interface ParsedLogEvent {
 
 // A header written without a key: the key is decided later (label matching), then written back.
 export interface HeaderNeedingKey {
-  itemIndex: number; // index into `items`, or -1 for the package header
+  itemIndex: number; // index into `items` or `logEvents`
   label: string;
   className: ContentItem["class"];
-  range: [number, number]; // character range of the header value in the text
+  range: [number, number];
   restRange: [number, number] | null; // tuple fields after (label, key), kept on write-back
   isLogEvent: boolean;
 }
 
+// A place that names another item by key or by label. Matched to a key in import/draft.ts.
+export interface RefSite {
+  line: number | null;
+  kind: "thing" | "scope" | "package" | "manifest";
+  written: string;
+  where: string; // "link", "scope", "roles", "context" ...
+  set(key: string): void;
+  range: [number, number] | null; // a plain value: replaced by the key when written back
+  condition: ConditionSite | null; // inside a condition: the whole condition is re-rendered
+}
+
+export interface ConditionSite {
+  range: [number, number];
+  render(): string;
+}
+
 export interface ParsedText {
-  packageLabel: string;
-  packageKey: string | null;
+  fileKind: FileKind;
+  headerLabel: string;
+  headerKey: string | null;
+  headerRange: [number, number] | null; // header written without a key
   sourceLayer: SourceLayer;
+  edition: string | null;
+  requires: string[];
+  conflicts: string[];
   items: ParsedItem[];
   logEvents: ParsedLogEvent[];
   headersNeedingKeys: HeaderNeedingKey[];
-  packageHeaderRange: [number, number] | null;
+  refs: RefSite[];
   problems: Problem[];
 }
 
-// --- Small helpers --------------------------------------------------------------------
+// The stat order for a profile written as a list, for a unit in a given context.
+export type StatOrderFor = (contextKey: string | null, contextsInFile: ManifestContext[]) => string[];
 
-export function slugify(label: string): string {
-  return (
-    label
-      .toLowerCase()
-      .replace(/['’]/g, "")
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "item"
-  );
-}
-
-class Reader {
-  problems: Problem[] = [];
-  constructor(private lines: LineCounter) {}
-
-  lineOf(node: YamlNode | null | undefined): number | null {
-    if (!node?.range) return null;
-    return this.lines.linePos(node.range[0]).line;
-  }
-
-  problem(node: YamlNode | null | undefined, severity: Problem["severity"], message: string): void {
-    this.problems.push({ line: this.lineOf(node), severity, message });
-  }
-}
-
-// A scalar's value as text, or null.
-function textOf(node: unknown): string | null {
-  if (isScalar(node) && node.value !== null && node.value !== undefined) return String(node.value);
-  return null;
-}
-
-function numberOf(node: unknown): number | null {
-  if (isScalar(node) && typeof node.value === "number") return node.value;
-  const text = textOf(node);
-  if (text !== null && text.trim() !== "" && !Number.isNaN(Number(text))) return Number(text);
-  return null;
-}
-
-// The items of a flow or block list, or [] if the node isn't a list.
-function listOf(node: unknown): unknown[] {
-  return isSeq(node) ? node.items : [];
-}
-
-// --- The header tuple: (label, key) ---------------------------------------------------------
-
-interface Header {
-  label: string;
-  key: string | null;
-  node: YamlNode;
-  // In a tuple, the character range of the fields after (label, key), kept when writing back.
-  restRange: [number, number] | null;
-}
-
-function readHeader(node: unknown, reader: Reader, what: string): Header | null {
-  if (isScalar(node) && textOf(node)) return { label: textOf(node)!, key: null, node, restRange: null };
-  if (isSeq(node)) {
-    const label = textOf(node.items[0]);
-    const key = textOf(node.items[1]);
-    const rest = node.items.slice(2) as YamlNode[];
-    const restRange: [number, number] | null =
-      rest.length > 0 && rest[0].range && rest[rest.length - 1].range
-        ? [rest[0].range[0], rest[rest.length - 1].range![1]]
-        : null;
-    if (label) return { label, key: key ?? null, node, restRange };
-  }
-  reader.problem(node as YamlNode, "error", what + " needs a label: [label, key]");
-  return null;
-}
-
-// --- Number edits: (stat, kind and value, target point) -----------------------------------------
-
-const TARGET_POINT_WORDS: Record<string, NumberEdit["targetPoint"]> = {
-  statline: "statline",
-  inline: "inline",
-  "in-line": "inline",
-  end: "end",
-};
-
-// Reads `[Ld, +1]`, `[Ld, =8, inline]`, `[M, x0.5]`, `[WS, at most 2]`.
-export function readEffect(node: unknown, reader: Reader): NumberEdit | null {
-  if (!isSeq(node) || node.items.length < 2) {
-    reader.problem(node as YamlNode, "error", "effect should be [stat, edit] or [stat, edit, target point]");
-    return null;
-  }
-  const stat = textOf(node.items[0]);
-  const editNode = node.items[1];
-  const pointText = textOf(node.items[2])?.replace(/^@/, "") ?? null;
-  if (!stat) {
-    reader.problem(node, "error", "effect needs a stat");
-    return null;
-  }
-  const edit = readEditWords(editNode);
-  if (!edit) {
-    reader.problem(node, "error", "can't read the edit “" + textOf(editNode) + "”");
-    return null;
-  }
-  let targetPoint: NumberEdit["targetPoint"];
-  if (pointText !== null) {
-    if (!(pointText in TARGET_POINT_WORDS)) {
-      reader.problem(node, "error", "unknown target point “" + pointText + "” (statline, inline or end)");
-      return null;
-    }
-    targetPoint = TARGET_POINT_WORDS[pointText];
-  } else if (edit.kind === "set") {
-    reader.problem(node, "error", "set needs a target point: statline, inline or end");
-    return null;
-  } else {
-    targetPoint = edit.kind === "cap" || edit.kind === "floor" ? "end" : "inline";
-  }
-  return { stat, kind: edit.kind, value: edit.value, targetPoint };
-}
-
-function readEditWords(node: unknown): { kind: NumberEdit["kind"]; value: number } | null {
-  // A bare number is an add: `2` is read as `+2` (text-format §2).
-  if (isScalar(node) && typeof node.value === "number") return { kind: "add", value: node.value };
-  const text = textOf(node)?.trim().replace(/−/g, "-");
-  if (!text) return null;
-  const patterns: [RegExp, NumberEdit["kind"]][] = [
-    [/^=\s*(-?[\d.]+)$/, "set"],
-    [/^([+-][\d.]+)$/, "add"],
-    [/^[x×*]\s*([\d.]+)$/, "multiply"],
-    [/^at most\s+(-?[\d.]+)$/, "cap"],
-    [/^at least\s+(-?[\d.]+)$/, "floor"],
-  ];
-  for (const [pattern, kind] of patterns) {
-    const match = pattern.exec(text);
-    if (match) return { kind, value: Number(match[1]) };
-  }
-  return null;
-}
+const PACKAGE_SECTIONS = new Set(["package", "edition", "layer", "requires", "conflicts", "manifest", "stats", "category_order", "bag_order", "scopes", "rules"]);
+const SANDBOX_SECTIONS = new Set(["sandbox", "contexts", "things", "links", "units", "events", "log", "scopes"]);
 
 // --- Reading the whole text -------------------------------------------------------------------
 
-export function readText(text: string, fallbackLabel: string): ParsedText {
+export function readText(text: string, fallbackLabel: string, statOrderFor: StatOrderFor = () => DEFAULT_STAT_ORDER): ParsedText {
   const lines = new LineCounter();
   const doc = parseDocument(text, { lineCounter: lines, prettyErrors: false });
   const reader = new Reader(lines);
   const parsed: ParsedText = {
-    packageLabel: fallbackLabel,
-    packageKey: null,
+    fileKind: "package",
+    headerLabel: fallbackLabel,
+    headerKey: null,
+    headerRange: null,
     sourceLayer: "book",
+    edition: null,
+    requires: [],
+    conflicts: [],
     items: [],
     logEvents: [],
     headersNeedingKeys: [],
-    packageHeaderRange: null,
+    refs: [],
     problems: reader.problems,
   };
 
@@ -220,26 +131,34 @@ export function readText(text: string, fallbackLabel: string): ParsedText {
   }
   const root = doc.contents;
   if (!isMap(root)) {
-    reader.problem(root as YamlNode, "error", "the text should be a YAML map: package, things, links, units, scopes, rules, events, log");
+    reader.problem(root as YamlNode, "error", "the text should be a YAML map, starting `package:` or `sandbox:`");
     return parsed;
   }
 
-  readPackageHeader(root, reader, parsed);
+  readFileHeader(root, reader, parsed);
+  const allowed = parsed.fileKind === "package" ? PACKAGE_SECTIONS : SANDBOX_SECTIONS;
+
+  // Contexts first, so units can find their manifest's stat order.
+  const contextsNode = root.get("contexts", true);
+  if (contextsNode && parsed.fileKind === "sandbox") listOf(contextsNode).forEach((node) => guard(reader, node, () => readContext(node, reader, parsed)));
+  const contextsInFile = parsed.items.map((p) => p.item).filter((i): i is ManifestContext => i.class === "context");
+
   for (const pair of root.items) {
-    const section = textOf(pair.key);
+    const section = textOf(pair.key) ?? "";
+    if (!allowed.has(section)) {
+      reportMisplaced(section, pair.key as YamlNode, parsed.fileKind, reader);
+      continue;
+    }
     const items = listOf(pair.value);
     switch (section) {
-      case "package":
-      case "layer":
-        break;
       case "things":
         items.forEach((node) => guard(reader, node, () => readThing(node, reader, parsed)));
         break;
       case "links":
-        items.forEach((node) => guard(reader, node, () => readLink(node, reader, parsed)));
+        items.forEach((node) => guard(reader, node, () => readLink(node, reader, parsed, null, null)));
         break;
       case "units":
-        items.forEach((node) => guard(reader, node, () => readUnit(node, reader, parsed)));
+        items.forEach((node) => guard(reader, node, () => readUnit(node, reader, parsed, statOrderFor, contextsInFile)));
         break;
       case "scopes":
         items.forEach((node) => guard(reader, node, () => readScope(node, reader, parsed)));
@@ -253,11 +172,24 @@ export function readText(text: string, fallbackLabel: string): ParsedText {
       case "log":
         items.forEach((node) => guard(reader, node, () => readEvent(node, reader, parsed, true)));
         break;
+      case "manifest":
+        guard(reader, pair.value, () => readManifest(root, reader, parsed));
+        break;
       default:
-        reader.problem(pair.key as YamlNode, "warning", "unknown section “" + section + "” ignored");
+        break; // header fields, read above
     }
   }
   return parsed;
+}
+
+function reportMisplaced(section: string, node: YamlNode, fileKind: FileKind, reader: Reader): void {
+  if (fileKind === "package" && SANDBOX_SECTIONS.has(section)) {
+    reader.problem(node, "error", "“" + section + "” is world content: it belongs in a sandbox file (start it `sandbox: [label, key]`)");
+  } else if (fileKind === "sandbox" && PACKAGE_SECTIONS.has(section)) {
+    reader.problem(node, "error", "“" + section + "” belongs in a library package file (start it `package: [label, key]`), switched on in a context");
+  } else {
+    reader.problem(node, "warning", "unknown section “" + section + "” ignored");
+  }
 }
 
 // One bad item never stops the rest of the import.
@@ -269,135 +201,121 @@ function guard(reader: Reader, node: unknown, read: () => void): void {
   }
 }
 
-function readPackageHeader(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
-  const headerNode = root.get("package", true);
+function readFileHeader(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
+  const packageNode = root.get("package", true);
+  const sandboxNode = root.get("sandbox", true);
+  if (packageNode && sandboxNode) reader.problem(sandboxNode as YamlNode, "error", "a file is a package or a sandbox, not both: the sandbox header is ignored");
+  parsed.fileKind = sandboxNode && !packageNode ? "sandbox" : "package";
+  const headerNode = parsed.fileKind === "sandbox" ? sandboxNode : packageNode;
   if (headerNode) {
-    const header = readHeader(headerNode, reader, "package");
+    const header = readHeader(headerNode, reader, parsed.fileKind);
     if (header) {
-      parsed.packageLabel = header.label;
-      parsed.packageKey = header.key;
-      if (!header.key && header.node.range) parsed.packageHeaderRange = [header.node.range[0], header.node.range[1]];
+      parsed.headerLabel = header.label;
+      parsed.headerKey = header.key;
+      if (!header.key) parsed.headerRange = rangeOf(header.node);
     }
   }
-  const layer = textOf(root.get("layer", true));
+  if (parsed.fileKind === "sandbox") return;
+
+  const layerNode = root.get("layer", true);
+  const layer = textOf(layerNode);
   if (layer) {
     if (["book", "faq", "house", "campaign"].includes(layer)) parsed.sourceLayer = layer as SourceLayer;
-    else reader.problem(root.get("layer", true) as YamlNode, "error", "layer should be book, faq, house or campaign");
+    else reader.problem(layerNode as YamlNode, "error", "layer should be book, faq, house or campaign");
   }
+  parsed.edition = textOf(root.get("edition", true));
+  parsed.requires = wordsOf(root.get("requires", true));
+  parsed.conflicts = wordsOf(root.get("conflicts", true));
 }
 
 // Records an item; if its header had no key, remembers it for matching and writing back.
 function addItem(parsed: ParsedText, header: Header, item: ContentItem, line: number | null): void {
   parsed.items.push({ line, item });
-  if (!header.key && header.node.range) {
+  const range = rangeOf(header.node);
+  if (!header.key && range) {
     parsed.headersNeedingKeys.push({
       itemIndex: parsed.items.length - 1,
       label: header.label,
       className: item.class,
-      range: [header.node.range[0], header.node.range[1]],
+      range,
       restRange: header.restRange,
       isLogEvent: false,
     });
   }
 }
 
-// Things: [label, key, kinds]. Kinds may be a list or words separated by spaces.
-function readThing(node: unknown, reader: Reader, parsed: ParsedText): void {
-  const header = readHeader(node, reader, "thing");
+// A plain value naming another item: matched later, written back if it was a label.
+function addRef(parsed: ParsedText, reader: Reader, node: unknown, kind: RefSite["kind"], where: string, set: (key: string) => void): void {
+  const written = textOf(node);
+  if (!written) return;
+  parsed.refs.push({ line: reader.lineOf(node as YamlNode), kind, written, where, set, range: rangeOf(node), condition: null });
+}
+
+// --- Library package: manifest, scopes, rules ----------------------------------------------------
+
+function readRanks(node: unknown, reader: Reader): CategoryRanks | null {
+  if (!isSeq(node)) {
+    reader.problem(node as YamlNode, "error", "an order is a list of categories: [place, organisation, title]");
+    return null;
+  }
+  // Each entry is one category, or a list of categories sharing a rank.
+  return node.items.map((entry) => (isSeq(entry) ? wordsOf(entry) : [textOf(entry) ?? ""]));
+}
+
+function readManifest(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
+  const header = readHeader(root.get("manifest", true), reader, "manifest");
   if (!header) return;
-  const kindsNode = isSeq(node) ? node.items[2] : undefined;
-  const kinds = isSeq(kindsNode)
-    ? kindsNode.items.map(textOf).filter((k): k is string => !!k)
-    : (textOf(kindsNode)?.split(/\s+/).filter(Boolean) ?? []);
-  if (kinds.length === 0) reader.problem(node as YamlNode, "warning", "“" + header.label + "” has no kinds");
+  const stats = wordsOf(root.get("stats", true));
+  const orders = root.get("category_order", true);
+  const origin = isMap(orders) ? readRanks(orders.get("origin", true), reader) : null;
+  const stationed = isMap(orders) ? readRanks(orders.get("stationed", true), reader) : null;
+  const bag = wordsOf(root.get("bag_order", true)) as EditKind[];
+  if (stats.length === 0) reader.problem(header.node, "error", "a manifest needs its stats: [M, WS, BS, S, T, W, I, A, Ld]");
+  if (!origin || !stationed) reader.problem(header.node, "error", "a manifest needs category_order with origin and stationed");
+  const kinds: EditKind[] = ["set", "add", "multiply", "cap", "floor"];
+  if (bag.length !== kinds.length || !kinds.every((k) => bag.includes(k))) {
+    reader.problem(header.node, "error", "bag_order should list set, add, multiply, cap and floor once each");
+    return;
+  }
+  if (stats.length === 0 || !origin || !stationed) return;
+  if (!parsed.edition) parsed.edition = header.key ?? null;
   addItem(
     parsed,
     header,
-    { class: "thing", key: header.key ?? "", label: header.label, package: null, kinds, attributes: {} },
-    reader.lineOf(node as YamlNode),
+    {
+      class: "manifest",
+      key: header.key ?? "",
+      label: header.label,
+      space: "",
+      package: null,
+      statOrder: stats,
+      categoryOrder: { origin, stationed },
+      bagOrder: bag,
+    },
+    reader.lineOf(header.node),
   );
 }
 
-// Links: [from, kind, to, start, end]. The key is the tuple itself.
-function readLink(node: unknown, reader: Reader, parsed: ParsedText, fromOverride?: string, defaultStart?: number): void {
-  if (!isSeq(node)) {
-    reader.problem(node as YamlNode, "error", "a link should be [from, kind, to, start, end]");
-    return;
-  }
-  const parts = fromOverride ? [fromOverride, ...node.items] : node.items;
-  const from = typeof parts[0] === "string" ? parts[0] : textOf(parts[0]);
-  const kind = textOf(parts[1]);
-  const to = textOf(parts[2]);
-  const start = parts[3] === undefined ? (defaultStart ?? null) : numberOf(parts[3]);
-  const end = parts[4] === undefined ? null : numberOf(parts[4]);
-  if (!from || !kind || !to || start === null) {
-    reader.problem(node, "error", fromOverride ? "a unit link should be [kind, to, start, end]" : "a link should be [from, kind, to, start, end]");
-    return;
-  }
-  parsed.items.push({
-    line: reader.lineOf(node),
-    item: { class: "link", key: [from, kind, to, start].join("~"), label: kind.replace(/_/g, " "), package: null, kind, from, to, start, end },
-  });
-}
-
-function readUnit(node: unknown, reader: Reader, parsed: ParsedText): void {
-  if (!isMap(node)) {
-    reader.problem(node as YamlNode, "error", "a unit should be a map: unit, raised, profile, links");
-    return;
-  }
-  const header = readHeader(node.get("unit", true), reader, "unit");
-  if (!header) return;
-  const raised = numberOf(node.get("raised", true));
-  if (raised === null) {
-    reader.problem(node, "error", "unit “" + header.label + "” needs a raising date: raised: 2520");
-    return;
-  }
-  const profile = readProfile(node.get("profile", true), reader);
-  if (!profile) return;
-  addItem(parsed, header, { class: "unit", key: header.key ?? "", label: header.label, package: null, profile, raised }, reader.lineOf(node));
-  // The unit's own links start at its raising date unless they say otherwise.
-  const unitIndex = parsed.items.length - 1;
-  for (const linkNode of listOf(node.get("links", true))) {
-    guard(reader, linkNode, () => readLink(linkNode, reader, parsed, "@unit:" + unitIndex, raised));
-  }
-}
-
-function readProfile(node: unknown, reader: Reader): Record<string, number> | null {
-  const profile: Record<string, number> = {};
-  if (isSeq(node)) {
-    if (node.items.length > STAT_ORDER.length) reader.problem(node, "warning", "profile has more values than stats (" + STAT_ORDER.join(" ") + ")");
-    node.items.forEach((valueNode, i) => {
-      const value = numberOf(valueNode);
-      if (value !== null && i < STAT_ORDER.length) profile[STAT_ORDER[i]] = value;
-      else if (textOf(valueNode) !== "-") reader.problem(valueNode as YamlNode, "warning", "can't read profile value “" + textOf(valueNode) + "”");
-    });
-    return profile;
-  }
-  if (isMap(node)) {
-    for (const pair of node.items) {
-      const stat = textOf(pair.key);
-      const value = numberOf(pair.value);
-      if (stat && value !== null) profile[stat] = value;
-      else reader.problem(pair.key as YamlNode, "warning", "can't read profile entry");
-    }
-    return profile;
-  }
-  reader.problem(node as YamlNode, "error", "a unit needs a profile: [M, WS, BS, S, T, W, I, A, Ld] or a map");
-  return null;
-}
-
-function readCondition(node: unknown, reader: Reader, what: string): Expression | null {
+// Reads a condition and registers every name in it for matching.
+function readCondition(node: unknown, reader: Reader, parsed: ParsedText, what: string): Expression | null {
   const text = textOf(node);
   if (!text) {
     reader.problem(node as YamlNode, "error", what + " is missing");
     return null;
   }
+  let expression: Expression;
   try {
-    return parseExpression(text);
+    expression = parseExpression(text);
   } catch (error) {
     reader.problem(node as YamlNode, "error", what + ": " + (error as Error).message);
     return null;
   }
+  const range = rangeOf(node);
+  const site: ConditionSite | null = range ? { range, render: () => expressionToText(expression) } : null;
+  for (const ref of conditionRefs(expression)) {
+    parsed.refs.push({ line: reader.lineOf(node as YamlNode), kind: ref.kind, written: ref.written, where: what, set: ref.set, range: null, condition: site });
+  }
+  return expression;
 }
 
 function readScope(node: unknown, reader: Reader, parsed: ParsedText): void {
@@ -406,9 +324,9 @@ function readScope(node: unknown, reader: Reader, parsed: ParsedText): void {
     return;
   }
   const header = readHeader(node.get("scope", true), reader, "scope");
-  const query = readCondition(node.get("query", true), reader, "query");
+  const query = readCondition(node.get("query", true), reader, parsed, "query");
   if (!header || !query) return;
-  addItem(parsed, header, { class: "scope", key: header.key ?? "", label: header.label, package: null, query }, reader.lineOf(node));
+  addItem(parsed, header, { class: "scope", key: header.key ?? "", label: header.label, space: "", package: null, query }, reader.lineOf(node));
 }
 
 function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
@@ -418,9 +336,9 @@ function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
   }
   const header = readHeader(node.get("rule", true), reader, "rule");
   const effect = readEffect(node.get("effect", true), reader);
-  const scope = readCondition(node.get("scope", true), reader, "scope");
+  const scope = readCondition(node.get("scope", true), reader, parsed, "scope");
   const triggerNode = node.get("trigger", true);
-  const trigger = triggerNode ? readCondition(triggerNode, reader, "trigger") : null;
+  const trigger = triggerNode ? readCondition(triggerNode, reader, parsed, "trigger") : null;
   const nature = textOf(node.get("nature", true));
   const category = textOf(node.get("category", true));
   const layer = textOf(node.get("layer", true)) ?? parsed.sourceLayer;
@@ -437,6 +355,7 @@ function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
       class: "rule",
       key: header.key ?? "",
       label: header.label,
+      space: "",
       package: null,
       effect,
       scope,
@@ -451,6 +370,110 @@ function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
   );
 }
 
+// --- Sandbox: contexts, things, links, units, events, log ------------------------------------------
+
+function readContext(node: unknown, reader: Reader, parsed: ParsedText): void {
+  if (!isMap(node)) {
+    reader.problem(node as YamlNode, "error", "a context should be a map: context, manifest, packages");
+    return;
+  }
+  const header = readHeader(node.get("context", true), reader, "context");
+  const manifestNode = node.get("manifest", true);
+  const manifest = textOf(manifestNode);
+  if (!header) return;
+  if (!manifest) {
+    reader.problem(node, "error", "context “" + header.label + "” needs a manifest: wfb6");
+    return;
+  }
+  const context: ManifestContext = { class: "context", key: header.key ?? "", label: header.label, space: "", package: null, manifest, packages: [] };
+  addItem(parsed, header, context, reader.lineOf(node));
+  addRef(parsed, reader, manifestNode, "manifest", "context manifest", (key) => (context.manifest = key));
+  const packagesNode = node.get("packages", true);
+  listOf(packagesNode).forEach((packageNode, i) => {
+    context.packages.push(textOf(packageNode) ?? "");
+    addRef(parsed, reader, packageNode, "package", "context packages", (key) => (context.packages[i] = key));
+  });
+}
+
+// Things: [label, key, kinds]. Kinds may be a list or words separated by spaces.
+function readThing(node: unknown, reader: Reader, parsed: ParsedText): void {
+  const header = readHeader(node, reader, "thing");
+  if (!header) return;
+  const kindsNode = isSeq(node) ? node.items[2] : undefined;
+  const kinds = isSeq(kindsNode) ? wordsOf(kindsNode) : (textOf(kindsNode)?.split(/\s+/).filter(Boolean) ?? []);
+  if (kinds.length === 0) reader.problem(node as YamlNode, "warning", "“" + header.label + "” has no kinds");
+  addItem(parsed, header, { class: "thing", key: header.key ?? "", label: header.label, space: "", package: null, kinds, attributes: {} }, reader.lineOf(node as YamlNode));
+}
+
+// Links: [from, kind, to, start, end]. A unit's own links leave out `from`; their start
+// defaults to the raising date. The key is the tuple itself, set once references are matched.
+function readLink(node: unknown, reader: Reader, parsed: ParsedText, unitIndex: number | null, defaultStart: number | null): void {
+  if (!isSeq(node)) {
+    reader.problem(node as YamlNode, "error", "a link should be [from, kind, to, start, end]");
+    return;
+  }
+  const parts = unitIndex !== null ? [null, ...node.items] : node.items;
+  const from = unitIndex !== null ? "@unit:" + unitIndex : textOf(parts[0]);
+  const kind = textOf(parts[1]);
+  const to = textOf(parts[2]);
+  const start = parts[3] === undefined ? defaultStart : numberOf(parts[3]);
+  const end = parts[4] === undefined ? null : numberOf(parts[4]);
+  if (!from || !kind || !to || start === null) {
+    reader.problem(node, "error", unitIndex !== null ? "a unit link should be [kind, to, start, end]" : "a link should be [from, kind, to, start, end]");
+    return;
+  }
+  const link: ContentItem = { class: "link", key: "", label: kind.replace(/_/g, " "), space: "", package: null, kind, from, to, start, end };
+  parsed.items.push({ line: reader.lineOf(node), item: link });
+  if (unitIndex === null) addRef(parsed, reader, parts[0], "thing", "link", (key) => (link.from = key));
+  addRef(parsed, reader, parts[2], "thing", "link", (key) => (link.to = key));
+}
+
+function readUnit(node: unknown, reader: Reader, parsed: ParsedText, statOrderFor: StatOrderFor, contextsInFile: ManifestContext[]): void {
+  if (!isMap(node)) {
+    reader.problem(node as YamlNode, "error", "a unit should be a map: unit, raised, profile, links");
+    return;
+  }
+  const header = readHeader(node.get("unit", true), reader, "unit");
+  if (!header) return;
+  const raised = numberOf(node.get("raised", true));
+  if (raised === null) {
+    reader.problem(node, "error", "unit “" + header.label + "” needs a raising date: raised: 2520");
+    return;
+  }
+  const context = textOf(node.get("context", true));
+  const profile = readProfile(node.get("profile", true), reader, statOrderFor(context, contextsInFile));
+  if (!profile) return;
+  addItem(parsed, header, { class: "unit", key: header.key ?? "", label: header.label, space: "", package: null, profile, raised, context }, reader.lineOf(node));
+  const unitIndex = parsed.items.length - 1;
+  for (const linkNode of listOf(node.get("links", true))) {
+    guard(reader, linkNode, () => readLink(linkNode, reader, parsed, unitIndex, raised));
+  }
+}
+
+function readProfile(node: unknown, reader: Reader, statOrder: string[]): Record<string, number> | null {
+  const profile: Record<string, number> = {};
+  if (isSeq(node)) {
+    if (node.items.length > statOrder.length) reader.problem(node, "warning", "profile has more values than stats (" + statOrder.join(" ") + ")");
+    node.items.forEach((valueNode, i) => {
+      const value = numberOf(valueNode);
+      if (value !== null && i < statOrder.length) profile[statOrder[i]] = value;
+      else if (textOf(valueNode) !== "-") reader.problem(valueNode as YamlNode, "warning", "can't read profile value “" + textOf(valueNode) + "”");
+    });
+    return profile;
+  }
+  if (isMap(node)) {
+    for (const pair of node.items) {
+      const stat = textOf(pair.key);
+      const value = numberOf(pair.value);
+      if (stat && value !== null) profile[stat] = value;
+      else reader.problem(pair.key as YamlNode, "warning", "can't read profile entry");
+    }
+    return profile;
+  }
+  reader.problem(node as YamlNode, "error", "a unit needs a profile: a list in the manifest's stat order, or a map");
+  return null;
+}
+
 function readEvent(node: unknown, reader: Reader, parsed: ParsedText, toLog: boolean): void {
   if (!isMap(node)) {
     reader.problem(node as YamlNode, "error", "an event should be a map: event, kind, roles, period");
@@ -461,34 +484,37 @@ function readEvent(node: unknown, reader: Reader, parsed: ParsedText, toLog: boo
   const period = listOf(node.get("period", true));
   const start = numberOf(period[0]);
   const end = period[1] === undefined ? null : numberOf(period[1]);
-  const roles: Record<string, string> = {};
-  const rolesNode = node.get("roles", true);
-  if (isMap(rolesNode)) {
-    for (const pair of rolesNode.items) {
-      const role = textOf(pair.key);
-      const thing = textOf(pair.value);
-      if (role && thing) roles[role] = thing;
-    }
-  }
   if (!header) return;
   if (!kind || start === null) {
     reader.problem(node, "error", "event “" + header.label + "” needs a kind and a period: [start, end]");
     return;
   }
-  const record: EventRecord = { key: header.key ?? "", label: header.label, kind, roles, start, end };
-  if (toLog) {
-    parsed.logEvents.push({ line: reader.lineOf(node), event: record });
-    if (!header.key && header.node.range) {
-      parsed.headersNeedingKeys.push({
-        itemIndex: parsed.logEvents.length - 1,
-        label: header.label,
-        className: "event",
-        range: [header.node.range[0], header.node.range[1]],
-        restRange: header.restRange,
-        isLogEvent: true,
-      });
+  const record: EventRecord = { key: header.key ?? "", label: header.label, kind, roles: {}, start, end };
+  const rolesNode = node.get("roles", true);
+  if (isMap(rolesNode)) {
+    for (const pair of rolesNode.items) {
+      const role = textOf(pair.key);
+      const thing = textOf(pair.value);
+      if (!role || !thing) continue;
+      record.roles[role] = thing;
+      addRef(parsed, reader, pair.value, "thing", "roles", (key) => (record.roles[role] = key));
     }
+  }
+  if (!toLog) {
+    // The content item shares `record.roles`, so matching a role's label updates both.
+    addItem(parsed, header, { class: "event", ...record, space: "", package: null }, reader.lineOf(node));
     return;
   }
-  addItem(parsed, header, { class: "event", ...record, package: null }, reader.lineOf(node));
+  parsed.logEvents.push({ line: reader.lineOf(node), event: record });
+  const range = rangeOf(header.node);
+  if (!header.key && range) {
+    parsed.headersNeedingKeys.push({
+      itemIndex: parsed.logEvents.length - 1,
+      label: header.label,
+      className: "event",
+      range,
+      restRange: header.restRange,
+      isLogEvent: true,
+    });
+  }
 }

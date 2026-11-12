@@ -23,29 +23,29 @@ describe("log", () => {
   it("withdraws by appending; the original stays, marked withdrawn, and derivations skip it", async () => {
     const store = new MemoryStore();
     const deps = testDeps();
-    const id = await appendEvent(store, deps, wages, 2524);
-    const withdrawalId = await withdraw(store, deps, id, "never happened");
+    const id = await appendEvent(store, deps, "s", wages, 2524);
+    const withdrawalId = await withdraw(store, deps, "s", id, "never happened");
 
-    const audit = readLog(await store.listEntries(), OWNER);
+    const audit = readLog(await store.listEntries("s"), OWNER);
     expect(audit.map((e) => [e.id, e.status])).toEqual([
       [id, "withdrawn"],
       [withdrawalId, "accepted"],
     ]);
     expect(audit[0].withdrawnBy).toBe(withdrawalId);
-    expect(acceptedEntries(await store.listEntries(), OWNER).map((e) => e.id)).toEqual([withdrawalId]);
+    expect(acceptedEntries(await store.listEntries("s"), OWNER).map((e) => e.id)).toEqual([withdrawalId]);
   });
 
   it("withdrawing the withdrawal brings the original back", async () => {
     const store = new MemoryStore();
     const deps = testDeps();
-    const id = await appendEvent(store, deps, wages, 2524);
-    const withdrawalId = await withdraw(store, deps, id, "mistake");
-    await withdraw(store, deps, withdrawalId, "it did happen");
-    const statuses = readLog(await store.listEntries(), OWNER).map((e) => e.status);
+    const id = await appendEvent(store, deps, "s", wages, 2524);
+    const withdrawalId = await withdraw(store, deps, "s", id, "mistake");
+    await withdraw(store, deps, "s", withdrawalId, "it did happen");
+    const statuses = readLog(await store.listEntries("s"), OWNER).map((e) => e.status);
     expect(statuses).toEqual(["accepted", "withdrawn", "accepted"]);
   });
 
-  it("unseal() returns nothing for a sealed entry (no keys in slice 0)", () => {
+  it("unseal() returns nothing for a sealed entry (no keys yet)", () => {
     const entry = makeEntry(testDeps(), { kind: "event", inWorldDate: 1, targets: [], values: {} });
     const sealed: LogEnvelope = { ...entry, seal: { form: "sealed", ciphertext: "xyz" } };
     expect(unseal(sealed, OWNER)).toBeNull();

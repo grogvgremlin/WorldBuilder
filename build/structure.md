@@ -1,70 +1,85 @@
 # Structure guide
 
-Each module, what it does, and the design doc and section it implements. Every source file also names its doc in its top comment.
+Each module, what it does, and the design doc and section it implements. Every source file also names its doc in its top comment. "Brief" means the current slice brief (`build/slice-1-brief.md`) unless it says slice 0.
 
 ## Core (no I/O except `src/store/`)
 
 | Module | Does | Design |
 |---|---|---|
 | `src/schema/log-entry.ts` | The log entry in its full shape: envelope (ID, recorded time, device, host sequence number) and seal (identity, status, order, content, visibility) | `infra.md` §8, §5.1 |
+| `src/schema/log-values.ts` | What each entry kind holds: event, withdrawal, package switch, category order, pin | `infra.md` §8; `rules-overlay.md` §12; brief §1.2 |
 | `src/schema/expression.ts` | Conditions: `reaches`, `in_force`, named scope, `all` / `any` / `not` | `rules-overlay.md` §17, §6 |
-| `src/schema/content.ts` | Things, dated links, events, units, rules (effect, scope, trigger, nature, category, source layer, target point), named scopes, packages | `world-structure.md` §1–3, §7, §12; `rules-overlay.md` §6–8, §12; `resolver.md` §5.2 |
-| `src/schema/draft-and-copy.ts` | Draft batches, per-line problems, the whole-copy export | `infra.md` §1–2; `text-format-and-csv.md` §8 |
+| `src/schema/content.ts` | Content items, each in a space (the library or a sandbox): things, dated links, events, units, rules, named scopes, packages, and the containers (manifest, sandbox, manifest context) | `world-structure.md` §1–3, §7, §12; `rules-overlay.md` §6–8, §12; `manifest.md` §1–2, §9; `items-packages-and-library.md` §4; brief §2.1 |
+| `src/schema/draft-and-copy.ts` | Draft batches (with their target: library or a sandbox), per-line problems, the whole copy (version 2, and version 1 for migration) | `infra.md` §1–2; `text-format-and-csv.md` §8 |
 | `src/schema/emit.ts`, `scripts/emit-schema.ts` | Writes JSON Schema to `schema/` | CLAUDE.md "Schema defined once" |
-| `src/store/store.ts` | The storage seam (append-only log, content by key, drafts, meta, whole copy) | `infra.md` §1–2 |
+| `src/store/store.ts` | The storage seam: one append-only log per sandbox, content by (space, key), drafts, meta, whole copy; `contentForSandbox` | `infra.md` §1–2; brief §2.1 |
 | `src/store/memory-store.ts` | The seam in memory, for tests | — |
-| `src/store/indexeddb-store.ts` | The seam in IndexedDB; asking for persistent storage | — |
-| `src/log/unseal.ts` | `unseal()`: the one read path into an entry (a no-op in slice 0) | `infra.md` §5, §5.1 |
-| `src/log/log.ts` | Making entries, appending events, withdrawal, the audit view, accepted entries | `infra.md` §1–2, §6, §8 |
+| `src/store/indexeddb-store.ts` | The seam in IndexedDB (version 2, migrating version 1 in place); asking for persistent storage | — |
+| `src/store/migrate.ts` | Slice 0's data into slice 1's containers; the default WFB 6th manifest | brief §2.1 |
+| `src/log/unseal.ts` | `unseal()`: the one read path into an entry (no grant check yet) | `infra.md` §5, §5.1 |
+| `src/log/log.ts` | Making entries, appending events, withdrawal, GM fixes (package switch, category order, pin), the audit view, accepted entries | `infra.md` §1–2, §6, §8; `rules-overlay.md` §12 |
 | `src/world/world.ts` | Building the world from content plus accepted entries; `reaches(target, via, when)`; `in force(kind, roles)` | `world-structure.md` §1–3, §7; `rules-overlay.md` §17 |
+| `src/world/tree.ts` | A thing's tree at a date: what it reaches, what reaches it, rules naming it | `rules-overlay.md` §13; brief §2.3 |
+| `src/overlay/context.ts` | A manifest context as the resolver reads it: packages on / off, category order per step, bag order, pins, warnings | brief §1.2, §2.1; `rules-overlay.md` §12; `items-packages-and-library.md` §4, §10 |
 | `src/overlay/conditions.ts` | Evaluating scopes and triggers to true / false / can't tell, with a trace of what was read | `rules-overlay.md` §17, §5.1, §13 |
-| `src/overlay/order.ts` | Order within a step: target point → source layer → category → depth → bag; category order per step | `rules-overlay.md` §8, §12; `resolver.md` §5.2–5.3 |
-| `src/overlay/resolve.ts` | The resolver, a pure function; the four tests per rule; the fold; clash notices | `rules-overlay.md` §6–8, §11–13; `resolver.md` §1, §5.2–5.6 |
+| `src/overlay/order.ts` | Order within a step: target point → source layer → category → depth → bag, then pins; orders come from the context | `rules-overlay.md` §8, §12; `resolver.md` §5.2–5.3 |
+| `src/overlay/resolve.ts` | The resolver, a pure function: rules in play by context, the tests per rule, the fold, clash notices, derivation text | `rules-overlay.md` §6–8, §11–13; `resolver.md` §1, §5.2–5.6; brief §1.1–1.2 |
 | `src/overlay/derivation.ts` | Shapes of the derivation and the "why not?" tree | `rules-overlay.md` §13; `resolver.md` §11 |
-| `src/import/expression-text.ts` | Reading and writing conditions as text | `rules-overlay.md` §17; build log "text shape" |
-| `src/import/text-format.ts` | Reading the YAML text format into items, with problems per line | `text-format-and-csv.md` §1–3; build log "text shape" |
-| `src/import/export-text.ts` | Writing a rule or a whole package back out as text, in the one canonical form that re-imports unchanged | `text-format-and-csv.md` §1, §6 |
+| `src/overlay/landing.ts` | The units a rule lands on at a date (never the ones it doesn't); a unit filter for "why not?" | `rules-overlay.md` §9, §13; brief §2.3 |
+| `src/import/expression-text.ts` | Reading and writing conditions as text, including quoted labels | `rules-overlay.md` §17; `build/yaml-guide.md` §6 |
+| `src/import/text-values.ts` | Single YAML values: scalars, lists, (label, key) headers, number edits | `text-format-and-csv.md` §2–3 |
+| `src/import/text-format.ts` | Reading a package file or a sandbox file into items, with problems per line and every reference noted | `text-format-and-csv.md` §1–3; brief §2.1, §2.3 |
+| `src/import/export-text.ts` | Writing any item, package or sandbox back out as text that re-imports unchanged | `text-format-and-csv.md` §1, §6 |
 | `src/import/read-back.ts` | Plain-English read-backs of edits, conditions and rules | `text-format-and-csv.md` §4; `rules-overlay.md` §17 |
-| `src/import/draft.ts` | Text → draft (keys matched and written back, review status, reference checks) → deploy or discard | `text-format-and-csv.md` §1, §3, §8; `infra.md` §1–2 |
+| `src/import/draft.ts` | Text → draft (keys matched and written back, labels matched to keys, review status) → deploy to the library or a sandbox, or discard | `text-format-and-csv.md` §1, §3, §6, §8; `infra.md` §1–2; brief §2.1, §2.3 |
 
 ## Screens (`src/ui/`, thin)
 
 | Module | Does | Design |
 |---|---|---|
-| `main.tsx` | Opens storage, registers the service worker, renders | brief §1.1 |
-| `app-data.ts` | Every operation the screens need, over the storage seam | brief §3 |
-| `App.tsx` | Tabs: World, Import, Log, Data | brief §3 |
-| `screens/WorldScreen.tsx` | Everything deployed, by kind (units, things, rules, named scopes, events, packages); tap to open | brief §3 |
-| `screens/ItemScreen.tsx` | Any item in words (a thing's links in and out, events, rules that name it; a rule's read-back; a package's members) plus its text | `rules-overlay.md` §13 (first, static step); `text-format-and-csv.md` §4, §6 |
-| `screens/UnitScreen.tsx` | Unit card with a read date; tap a value → derivation; tap a rule → "why not?" tree; "View rule" / "View unit text" (`ItemText`); "Open rule"; withdraw / add again the logged events | `rules-overlay.md` §13 |
-| `screens/ImportScreen.tsx` | Paste, open a file, or load a test world → draft review → deploy / discard | `text-format-and-csv.md` §8 |
-| `screens/LogScreen.tsx` | Add an event entry; withdraw; the audit view | `infra.md` §2 |
-| `screens/DataScreen.tsx` | Export, import and wipe the whole copy; storage status | CLAUDE.md "No server" |
-| `save-file.ts` | Hands the viewer a file: the share sheet on iPhone, else a download | CLAUDE.md "No server" |
-| `components/ItemText.tsx` | "View text" on any item: copy, export it, export its package | `text-format-and-csv.md` §6 |
+| `main.tsx` | Opens storage, registers the service worker, renders | slice 0 brief §1.1 |
+| `app-data.ts` | Every operation the screens need, over the storage seam; the open sandbox | brief §2.1 |
+| `App.tsx` | Tabs: World, Library, Import, Log, Data; the sandbox switch; a back stack of opened items | brief §1.4, §2.1 |
+| `item-ref.ts` | Points at an item by space and key | brief §2.1 |
+| `tokens.css`, `styles.css` | Design tokens (every colour, type size, spacing, radius); layout built only from them | brief §1.6 |
+| `screens/WorldScreen.tsx` | The open sandbox: units, rules in play, named scopes in play, events, things grouped by kind | `world-structure.md` §2–3; brief §2.3 |
+| `screens/LibraryScreen.tsx` | Library packages and manifests; each context's packages (switch on / off), category order (change / back to default), pins (remove) | brief §1.2, §2.1; `rules-overlay.md` §12 |
+| `screens/ItemScreen.tsx` | Any item in words plus its text; a thing's tree at a date; a rule's units at a date and the "why not?" finder | `rules-overlay.md` §9, §13; brief §2.3 |
+| `screens/UnitScreen.tsx` | Unit card with a read date; derivation with pin / swap; "why not?" tree per rule; logged events to withdraw or add again | `rules-overlay.md` §12–13; brief §1.1–1.2 |
+| `screens/ImportScreen.tsx` | Paste, open a file, or load a test world (as drafts) → review → deploy one, or deploy all in order | `text-format-and-csv.md` §8; brief §7 |
+| `screens/LogScreen.tsx` | The open sandbox's log: add an event entry; withdraw; the audit view, with GM fixes in words | `infra.md` §2 |
+| `screens/DataScreen.tsx` | Export, import (slice 0 copies migrated) and wipe the whole copy; storage status | CLAUDE.md "No server yet" |
+| `save-file.ts` | Hands the viewer a file: the share sheet on iPhone, else a download | CLAUDE.md "No server yet" |
+| `components/ItemText.tsx` | "View text" on any item: copy, export it, export its package or sandbox | `text-format-and-csv.md` §6 |
+| `components/ReadDate.tsx` | The read-date control | `rules-overlay.md` §7 |
 | `components/Trace.tsx` | A condition's trace: true / false / can't tell and its inputs | `rules-overlay.md` §13 |
-| `fixtures.ts` | Bundles `test/fixtures/*.yaml` into the app | brief §3 "Fixtures" |
+| `fixtures.ts` | Bundles the test worlds (`test/fixtures/sets.json` and its files) into the app | brief §7 |
 
 ## Tests
 
 | File | Covers |
 |---|---|
-| `test/cases/e1-handgunners.test.ts` | E1 (required) |
-| `test/cases/e2-depth.test.ts` | E2 (required), plus a bag with a clash notice |
-| `test/cases/e4-grenzstadt.test.ts` | E4, first part (stretch) |
-| `test/cases/round-trip.test.ts` | Export → wipe → import (required), both stores |
+| `test/cases/e1-handgunners.test.ts` | E1 |
+| `test/cases/e2-depth.test.ts` | E2, plus a bag with a clash notice |
+| `test/cases/e4-grenzstadt.test.ts` | E4, first part |
+| `test/cases/c1-package-switch.test.ts` | C1: a package switched off in a context |
+| `test/cases/c2-category-order.test.ts` | C2: category order from the context; pins |
+| `test/cases/round-trip.test.ts` | Export → wipe → import, both stores, with sandboxes and GM fixes |
+| `test/cases/guide-examples.test.ts` | The "try" examples in `build/yaml-guide.md` |
 | `test/unit/log.test.ts` | Entry shape, withdrawal, `unseal()` |
-| `test/unit/store-contract.test.ts` | Both stores behave the same |
-| `test/unit/import.test.ts` | Drafts, keys written back, problems per line, condition text |
+| `test/unit/store-contract.test.ts` | Both stores behave the same (logs per sandbox, content by space) |
+| `test/unit/migrate.test.ts` | Slice 0 data and copies brought forward; IndexedDB upgraded in place |
+| `test/unit/import.test.ts` | Package and sandbox files, drafts, keys written back, problems per line, references by label |
+| `test/unit/export-text.test.ts` | Every item, package and sandbox re-imports unchanged and rebuilds the same content; read-backs |
+| `test/unit/tree-and-landing.test.ts` | A thing's tree; the units a rule lands on; the unit filter |
 | `test/unit/seams.test.ts` | Only `log/unseal.ts` reads the seal; only `src/store/` touches IndexedDB |
 | `test/unit/schema-emitted.test.ts` | `schema/` matches the zod schemas |
-| `test/unit/export-text.test.ts` | Exported rules and packages re-import unchanged and rebuild the same content |
-| `test/cases/guide-examples.test.ts` | The "try" examples in `build/yaml-guide.md` |
-| `test/fixtures/*.yaml` | The E1, E2 and E4 worlds (also loadable from the app) |
+| `test/fixtures/` | The test worlds, split by container: `wfb6-base` (manifest), `e*-rules` and `e1-campaign-rules` (library packages), `e*-world` (sandboxes), `e1-log`; `sets.json` lists each world's files in order |
 
 ## Guides
 
-- `build/yaml-guide.md`: how to write world text for the import, with examples to try.
+- `build/yaml-guide.md`: how to write package and sandbox files, with examples to try.
+- `build/army-data-request.md`: what army data Part B needs, and how to send it.
 
 ## Commands
 
