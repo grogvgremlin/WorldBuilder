@@ -153,11 +153,11 @@ Added 12 Nov 2026, from checking on a desktop:
 Slice 0 stops adding features here. Everything in "Owner feedback" above, apart from items done, goes to the slice 1 brief.
 
 **Left for the owner to check on the iPhone** (a failure here is fixed in slice 0; anything else waits):
-- [ ] Installed from https://grogvgremlin.github.io/WorldBuilder/ (Share → Add to Home Screen)
-- [ ] Opens with Airplane Mode on
-- [ ] E1 still there after a few days; Data tab says storage is persistent
-- [ ] Round trip on the phone: Export → Files → Wipe → import → same values
-- [ ] E1: withdraw / add again flips Ld 7 → 8 → 7, derivation explains it
+- [x] Installed from https://grogvgremlin.github.io/WorldBuilder/ (Share → Add to Home Screen)
+- [x] Opens with Airplane Mode on
+- [x] E1 still there after a few days; Data tab says storage is persistent
+- [x] Round trip on the phone: Export → Files → Wipe → import → same values  - user: tested for 2 days
+- [x] E1: withdraw / add again flips Ld 7 → 8 → 7, derivation explains it
 
 **To take to the design project:**
 - Questions for design 1–8 below (9 decided by the owner).
@@ -172,11 +172,11 @@ Slice 0 stops adding features here. Everything in "Owner feedback" above, apart 
 Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.
 
 1. **Target points across steps.** Built as: every statline edit first (origin step, then stationed), then every in-line edit (origin, then stationed), then every end edit. That follows `resolver.md` §5.2 ("statline steps → in-line → end" over the whole path). `rules-overlay.md` §8 lists target point as the first key *within* a step, which could instead mean origin (statline → in-line → end) then stationed (statline → in-line → end). The two differ only for a statline or end edit in the stationed step. Which is meant?
-2. **When does a clash notice fire?** Built as: only when nothing decided the order (step 5, the bag) and swapping changes the result. When the category or depth decides a non-commuting pair (E1: Nuln +1 then the School `= 8` → 8; reversed 9), no notice is raised; the derivation shows "swapped with the step before: 9" as information. `resolver.md` §5.6 (1) would raise a notice for any non-commuting pair from different packages. Should a decided order still raise one?
-3. **"place → organisation / title".** Built as two ranks: place first, then organisation and title sharing a rank. Or is it three ranks: place → organisation → title?
+2. **When does a clash notice fire?** Built as: only when nothing decided the order (step 5, the bag) and swapping changes the result. When the category or depth decides a non-commuting pair (E1: Nuln +1 then the School `= 8` → 8; reversed 9), no notice is raised; the derivation shows "swapped with the step before: 9" as information. `resolver.md` §5.6 (1) would raise a notice for any non-commuting pair from different packages. Should a decided order still raise one? (- user: decided order is fine to not raise.  the ordering detail should make it into the derivation text)
+3. **"place → organisation / title".** Built as two ranks: place first, then organisation and title sharing a rank. Or is it three ranks: place → organisation → title? (- user: it is three, but mainly because an organisation should grant a title.  As with everything else is should be macro and micro configurable)
 4. **Depth when only some rules share a chain.** Built as: depth orders a group only if every rule in it has a route, all routes lie on one chain, and no two depths are equal. Otherwise the whole group goes to the bag. Is a partial ordering wanted instead (depth for the rules that share a chain, the bag for the rest)?
-5. **Where sets go in a bag.** `resolver.md` §5.3 says add before multiply and caps and floors after, but not where a set goes. Built as set → add → multiply → cap → floor.
-6. **Named scopes and depth.** A named scope is treated as "a scope that names no thing" (no depth; straight to category, then the bag). Right?
-7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things?
-8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"?
+5. **Where sets go in a bag.** `resolver.md` §5.3 says add before multiply and caps and floors after, but not where a set goes. Built as set → add → multiply → cap → floor. (- user: Yes.  As with everything else is should be macro and micro configurable)
+6. **Named scopes and depth.** A named scope is treated as "a scope that names no thing" (no depth; straight to category, then the bag). Right? (- user: Yes although need some examples)
+7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things? (- user: don't understand. "does X rule Y now?" is a hook and we shoudl have that covered)
+8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"? (user: need a tangible example)
 9. **Read date before the raising date.** ~~Should the card say "not yet raised"?~~ **Owner decision (10 Nov):** yes. Read before its raising date, a unit reads nothing from the world: the card says "Not raised until 2520" and shows the printed profile, greyed, with no rules (`UnitResolution.notYetRaised`; tested in E1). To carry back to the design project.
