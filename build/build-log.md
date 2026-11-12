@@ -4,6 +4,54 @@ Running record of the build: technical choices (with one line of why), the text 
 
 ---
 
+## Slice 1 status (12 Nov 2026)
+
+Built in parts, in the brief's order (§0). **Part A is done; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
+
+| Part | State |
+|---|---|
+| **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container and orders read from the manifest. **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
+| **B** Army list and roster builder | Waiting on army data |
+| **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
+
+### What Part A built
+- **Containers** (brief §2.1): the **library** and each **sandbox** are content spaces; keys are unique within a space. The **manifest** (stat order, category order per step, bag order) is content in the WFB 6th base package. A **sandbox** holds one world and its own log. A **manifest context** names its manifest and the library packages switched on in it, in order. A unit reads in its context (its own `context:`, or the sandbox's first).
+- **A rule is in play only if its package is on in the unit's context** (C1). A rule from a package listed but switched off shows as "not in play: package off in this context", with who switched it and when. Rules from packages not in the context aren't shown.
+- **GM fixes are dated log entries in the sandbox's log**, withdrawable (brief §1.2): `package_switch`, `category_order` (macro, per context and step) and `pin` (micro, one pair on one value, for one unit or every unit). The derivation shows them: "order organisation → place → title, set for this context by owner, 2026-11-12"; "pinned: Nuln civic pride before Gunnery School (owner, 2026-11-12)".
+- **Q2, Q3, Q5** as answered: the ordering detail is in the derivation text with what reversing would give; the category order has three ranks; the bag order comes from the manifest.
+- **Display feedback** (brief §2.3): things grouped by kind; a thing's tree at a read date (what it reaches, what reaches it, the rules naming it); a rule's page lists only the units it applies to, with a filter (name, link, target, "or anywhere inside it") to ask "why not?" about others; the kind a scope read shows in the derivation ("Nuln (settlement · polity), read as place"); references by label on import.
+- **Screens**: a sandbox switch; a **Library** tab (packages, manifests, and each context's packages with Switch on / off, category order with Change / Back to default, pins with Remove); the unit card offers **Pin this order** and **Swap** on any adjacent pair whose order changes the value. Design tokens are in `src/ui/tokens.css`; no styles inline in screens (brief §1.6).
+- **Migration**: slice 0's stored data (IndexedDB version 1) and exported copies are brought forward on open / import: the world into a sandbox "slice0", rules into the library, a WFB 6th manifest added, one context with every old package switched on. Old drafts are dropped.
+
+### Technical choices (slice 1)
+| Choice | Why |
+|---|---|
+| Content keyed by (space, key); `space` is "library" or a sandbox key | Two sandboxes can each have their own Nuln; the library is one namespace (v2-reconciliation §3, author-defined keys). |
+| One log per sandbox: the sandbox is the log's partition (IndexedDB index on it), not a field inside the seal | Keeps the sealed envelope as infra §5.1 says; a server will order each sandbox's log separately. |
+| IndexedDB version 2 (`logs`, `items`), migrating version 1 inside the upgrade | The owner's phone keeps its slice 0 data. |
+| Whole copy version 2 (`logs` by sandbox); version 1 copies are migrated on import | Old exports still load. |
+| GM fixes have no in-world date; the latest accepted entry per context (and step, or pair) wins | They are out-of-fiction fixes (rules-overlay §9: errata and house rules follow §8's order, not chronology). See question 13. |
+| A pin moves its first rule just before the other within one step and target point, and takes both out of the bag | The GM has decided their order, so no clash notice for that pair. |
+| Pin and swap are offered only for adjacent pairs whose order changes the value | Pinning a commuting pair changes nothing. |
+| Fix dates in derivations are the recorded day (`2026-11-12`), not a localised date | Keeps the resolver's output the same on every device. |
+| No manifest found → built-in WFB orders, with a warning on the card | A sandbox still resolves while its base package is missing. |
+| Library rules may name things by bare key; a key-like name no sandbox has is accepted quietly | Library packages are world-agnostic; a sandbox may be loaded later. See question 10. |
+| Test worlds are sets of files (`test/fixtures/sets.json`), loaded as drafts and deployed in order with "Deploy all" | Imports still land in drafts first (text-format §1); later files see what earlier ones deployed. |
+| A thing's tree walks links on at the read date, each thing once by its shortest route, at most 8 hops | Readable, and stops runaway walks in big worlds. |
+| `src/ui/tokens.css` holds every colour, type size, spacing and radius; two columns above 760px | Brief §1.6: the look iterates; world views desktop-first, lists phone-first. |
+
+### The text shape, slice 1
+World content and rules now go in **different files**: a file starting `package:` is a library package (rules, named scopes, a manifest); a file starting `sandbox:` is a world (contexts, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.
+
+### Questions for design (slice 1)
+10. **Library rules name sandbox things by bare key.** A library rule says `reaches(nuln, …)`; each sandbox reads `nuln` in its own world. v2-reconciliation §3 says cross-namespace references carry a prefix and a bare key works inside its own namespace. Built as: bare keys in library rules resolve in the sandbox that reads them. Is that intended, or should a library rule reach world things another way (template slots, a setting package)?
+11. **Where campaign packages live.** C1's "Wissenland campaign rules" is built as a library package, switched on in E1's context. Should a campaign's own rules live in its sandbox instead (campaign-loop §12.3's "campaign-local package")? Built: packages only in the library.
+12. **Named scopes in both places.** Built: a named scope can be in a library package (with the rules that use it) or in a sandbox. Right?
+13. **Package switches and the read date.** A switch applies at every read date (out of fiction). Should a GM be able to switch a package on from an in-world date (a campaign rule that only starts in 2524)? Today that's a rule trigger's job.
+14. **Pins across steps.** A pin between rules in different steps or target points is ignored (it can't change their order). Right?
+
+---
+
 ## Slice 0 status (10 Nov 2026)
 
 | Done-when item (brief §5) | State |
@@ -58,6 +106,8 @@ Checked in a headless phone-sized browser against the production build: load E1 
 ---
 
 ## The text shape for world items (proposal, brief §3)
+
+_Superseded by slice 1 Part A (package files and sandbox files): see `build/yaml-guide.md`. Kept as history._
 
 The design has no text shape yet for world things, links, events, named scopes or scope + trigger rules. This follows `text-format-and-csv.md` §1–3: valid YAML, short positional tuples, `(label, key)` headers, keys written back, one file = one package. Worked examples: `test/fixtures/*.yaml`.
 

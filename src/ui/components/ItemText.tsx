@@ -1,34 +1,38 @@
-// "View text": any item as it would be written to import it; copy it, export it, or export its
-// whole package. Design: design/text-format-and-csv.md §6 (export; re-imports exactly).
+// "View text": any item as it would be written to import it; copy it, export it, or export the
+// whole package or sandbox it belongs to.
+// Design: design/text-format-and-csv.md §6 (export; re-imports exactly).
 
 import { useState } from "react";
-import type { ContentItem, Package } from "../../schema";
-import { itemToText, packageToText } from "../../import/export-text";
+import type { ContentItem } from "../../schema";
+import { containerToText, itemToText, type Container } from "../../import/export-text";
 import { saveFile } from "../save-file";
 
-export function ItemText({ content, itemKey, label = "View text" }: { content: ContentItem[]; itemKey: string; label?: string }) {
+export function ItemText({ all, item, label = "View text" }: { all: ContentItem[]; item: ContentItem; label?: string }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const item = content.find((i) => i.key === itemKey);
-  if (!item) return null;
-  const pkg = content.find((i): i is Package => i.class === "package" && i.key === item.package);
-  const text = itemToText(item, pkg, content);
+  const container = all.find(
+    (i): i is Container => (i.class === "package" || i.class === "sandbox") && i.key === item.package && i.space === item.space,
+  );
+  const text = itemToText(item, container, all);
+  const isContainer = item.class === "package" || item.class === "sandbox";
 
   if (!open) {
     return (
-      <button className="link" style={{ marginTop: 8 }} onClick={() => setOpen(true)}>
+      <button className="link gap-top" onClick={() => setOpen(true)}>
         {label}
       </button>
     );
   }
   return (
-    <div style={{ marginTop: 8 }}>
+    <div className="gap-top">
       <pre className="code">{text}</pre>
       <div className="row">
         <button onClick={async () => { await navigator.clipboard?.writeText(text); setCopied(true); }}>{copied ? "Copied" : "Copy"}</button>
         <button onClick={() => saveFile(item.key + ".yaml", text, "text/plain")}>Export</button>
-        {pkg && item.class !== "package" && (
-          <button onClick={() => saveFile(pkg.key + ".yaml", packageToText(pkg, content), "text/plain")}>Export package</button>
+        {container && !isContainer && (
+          <button onClick={() => saveFile(container.key + ".yaml", containerToText(container, all), "text/plain")}>
+            Export {container.class}
+          </button>
         )}
         <button className="link" onClick={() => setOpen(false)}>Hide</button>
       </div>

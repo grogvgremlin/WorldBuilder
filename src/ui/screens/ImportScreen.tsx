@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { DraftBatch } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
-import { FIXTURES } from "../fixtures";
+import { FIXTURE_SETS } from "../fixtures";
 
 interface Props {
   data: AppData;
@@ -23,6 +23,12 @@ export function ImportScreen({ data, snapshot, onChanged, onDeployed }: Props) {
     const created = await data.importText(source, label);
     await onChanged();
     setOpenDraftId(created.id);
+  };
+
+  // A test world: one draft per file, left for review; "Deploy all" deploys them in order.
+  const loadSet = async (files: { name: string; text: string }[]) => {
+    for (const file of files) await data.importText(file.text, file.name);
+    await onChanged();
   };
 
   const openFile = async (file: File | undefined) => {
@@ -47,10 +53,11 @@ export function ImportScreen({ data, snapshot, onChanged, onDeployed }: Props) {
     <>
       <h1>Import</h1>
       <h2>Test worlds</h2>
+      <p className="muted">Each loads as drafts, one per file (base package, rules, world, log). Review them, then deploy.</p>
       <div className="row">
-        {FIXTURES.map((fixture) => (
-          <button key={fixture.name} onClick={() => makeDraft(fixture.text, fixture.name)}>
-            {fixture.name.replace(".yaml", "")}
+        {FIXTURE_SETS.map((set) => (
+          <button key={set.name} onClick={() => loadSet(set.files)}>
+            {set.name} <span className="muted">({set.files.length} files)</span>
           </button>
         ))}
       </div>
@@ -61,7 +68,7 @@ export function ImportScreen({ data, snapshot, onChanged, onDeployed }: Props) {
       <label htmlFor="text">Or paste it</label>
       <textarea id="text" value={text} spellCheck={false} autoCapitalize="off" autoCorrect="off"
         onChange={(e) => setText(e.target.value)} placeholder={"package: [My notes, my_notes]\nthings:\n  - [Nuln, nuln, [settlement]]"} />
-      <div className="row" style={{ marginTop: 8 }}>
+      <div className="row gap-top">
         <button className="primary" disabled={!text.trim()} onClick={() => makeDraft(text, fileLabel)}>
           Import into a draft
         </button>
@@ -69,13 +76,22 @@ export function ImportScreen({ data, snapshot, onChanged, onDeployed }: Props) {
 
       {snapshot.drafts.length > 0 && (
         <>
-          <h2>Drafts waiting</h2>
-          {snapshot.drafts.map((d) => (
+          <div className="row spread">
+            <h2>Drafts waiting</h2>
+            {snapshot.drafts.length > 1 && (
+              <button className="primary small" onClick={async () => { await data.deployAll(snapshot.drafts); await onChanged(); onDeployed(); }}>
+                Deploy all, in order
+              </button>
+            )}
+          </div>
+          {[...snapshot.drafts].sort((a, b) => a.createdTime.localeCompare(b.createdTime)).map((d) => (
             <button key={d.id} className="list-button card" onClick={() => setOpenDraftId(d.id)}>
               <span>
                 {d.label}
                 <br />
-                <span className="muted">{d.content.length} items · {d.problems.length} problems</span>
+                <span className="muted">
+                  {d.target.kind === "library" ? "library package" : "sandbox " + d.target.sandbox} · {d.content.length} items · {d.problems.length} problems
+                </span>
               </span>
               <span aria-hidden>›</span>
             </button>
@@ -95,6 +111,7 @@ function DraftReview({ draft, onDeploy, onDiscard, onBack }: { draft: DraftBatch
     <>
       <button className="link" onClick={onBack}>‹ Import</button>
       <h1>Draft: {draft.label}</h1>
+      <p className="muted">Deploys to {draft.target.kind === "library" ? "the library" : "sandbox " + draft.target.sandbox}.</p>
       <p className="muted">
         {counts.new} new · {counts.edit} edits · {counts.unchanged} unchanged · {draft.logItems.length} log entries
       </p>

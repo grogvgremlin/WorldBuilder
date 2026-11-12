@@ -28,11 +28,13 @@ export interface PackageState {
   key: string;
   on: boolean;
   note: string; // "on by default in WFB 6th" / "switched off by owner, 2026-11-12"
+  entryId: string | null; // the switch entry, if a GM switched it
 }
 
 export interface StepOrder {
   ranks: CategoryRanks;
   note: string; // "WFB 6th default" / "set for this context by owner, 2026-11-12"
+  entryId: string | null; // the override entry, if the GM set one
 }
 
 export interface Pin extends PinValues {
@@ -73,8 +75,8 @@ export function readContext(world: World, context: ManifestContext | null): Cont
     manifest,
     packages: [],
     categoryOrder: {
-      origin: { ranks: manifest?.categoryOrder.origin ?? FALLBACK_ORDER, note: manifestName + " default" },
-      stationed: { ranks: manifest?.categoryOrder.stationed ?? FALLBACK_ORDER, note: manifestName + " default" },
+      origin: { ranks: manifest?.categoryOrder.origin ?? FALLBACK_ORDER, note: manifestName + " default", entryId: null },
+      stationed: { ranks: manifest?.categoryOrder.stationed ?? FALLBACK_ORDER, note: manifestName + " default", entryId: null },
     },
     bagOrder: manifest?.bagOrder ?? FALLBACK_BAG,
     pins: [],
@@ -83,7 +85,7 @@ export function readContext(world: World, context: ManifestContext | null): Cont
   if (!context) return view;
 
   const contextName = context.label;
-  view.packages = context.packages.map((key) => ({ key, on: true, note: "on by default in " + contextName }));
+  view.packages = context.packages.map((key) => ({ key, on: true, note: "on by default in " + contextName, entryId: null }));
 
   for (const fix of world.fixes) {
     const values = fix.body.content.values as Record<string, unknown>;
@@ -91,11 +93,11 @@ export function readContext(world: World, context: ManifestContext | null): Cont
     const note = fixNote(fix.body.identity.actor, fix.recordedTime);
     switch (fix.body.content.kind) {
       case "package_switch":
-        applySwitch(view, values as unknown as PackageSwitchValues, note);
+        applySwitch(view, values as unknown as PackageSwitchValues, note, fix.id);
         break;
       case "category_order": {
         const order = values as unknown as CategoryOrderValues;
-        view.categoryOrder[order.step] = { ranks: order.order, note: "set for this context by " + note };
+        view.categoryOrder[order.step] = { ranks: order.order, note: "set for this context by " + note, entryId: fix.id };
         break;
       }
       case "pin":
@@ -107,14 +109,15 @@ export function readContext(world: World, context: ManifestContext | null): Cont
   return view;
 }
 
-function applySwitch(view: ContextView, values: PackageSwitchValues, note: string): void {
+function applySwitch(view: ContextView, values: PackageSwitchValues, note: string, entryId: string): void {
   const text = (values.on ? "switched on by " : "switched off by ") + note;
   const existing = view.packages.find((p) => p.key === values.package);
   if (existing) {
     existing.on = values.on;
     existing.note = text;
+    existing.entryId = entryId;
   } else {
-    view.packages.push({ key: values.package, on: values.on, note: text });
+    view.packages.push({ key: values.package, on: values.on, note: text, entryId });
   }
 }
 

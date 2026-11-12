@@ -1,55 +1,73 @@
-// The unit card: values at a read date; tap a value for its derivation; tap a rule for the
-// "why not?" tree; add or withdraw the events its rules' triggers read.
-// Design: design/rules-overlay.md §13 (derivation fields; the tree's four tests);
-// build/slice-0-brief.md §3 "Screens".
+// The unit card: values at a read date; tap a value for its derivation (with pin / swap on a
+// pair); each rule's "why not?" tree; the events its triggers read, to withdraw or add again.
+// Design: design/rules-overlay.md §12 (pins: the GM fix for a single pair), §13 (derivation
+// fields; the tree's tests); build/slice-1-brief.md §1.1 (Q2: ordering detail in the
+// derivation), §1.2 (pin or swap from the card writes a pin entry), §2.3 (the kind a scope
+// read).
 
 import { useEffect, useState } from "react";
 import type { EventRecord } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import type { UnitResolution } from "../../overlay/resolve";
+import type { ContextView } from "../../overlay/context";
 import type { AppliedStep, RuleCheck, ValueDerivation } from "../../overlay/derivation";
 import { Trace, TruthTag } from "../components/Trace";
-import { STAT_ORDER } from "../../import/text-format";
 import { ItemText } from "../components/ItemText";
+import { latestDate, ReadDate } from "../components/ReadDate";
+import { findByKey, itemRef, type ItemRef } from "../item-ref";
 
 interface Props {
   data: AppData;
   snapshot: Snapshot;
+  sandbox: string;
   unitKey: string;
   onBack: () => void;
-  onOpenItem: (key: string) => void;
+  onOpenItem: (ref: ItemRef) => void;
   onChanged: () => Promise<void>;
 }
 
-export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChanged }: Props) {
-  const [readDate, setReadDate] = useState<number>(() => latestDate(snapshot));
+export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenItem, onChanged }: Props) {
+  const logDates = snapshot.log.map((e) => e.body.order.inWorldDate).filter((d): d is number => d !== null);
+  const [readDate, setReadDate] = useState<number>(() => latestDate(snapshot.content, logDates));
   const [resolution, setResolution] = useState<UnitResolution | null>(null);
+  const [context, setContext] = useState<ContextView | null>(null);
   const [openStat, setOpenStat] = useState<string | null>(null);
   const [openRule, setOpenRule] = useState<string | null>(null);
 
   useEffect(() => {
-    void data.resolveUnit(unitKey, readDate).then(setResolution);
-  }, [data, unitKey, readDate, snapshot]);
+    void data.resolveUnit(sandbox, unitKey, readDate).then(setResolution);
+    void data.contextOfUnit(sandbox, unitKey).then(setContext);
+  }, [data, sandbox, unitKey, readDate, snapshot]);
 
   if (!resolution) return <p className="muted">Resolving…</p>;
-  const stats = orderedStats(resolution);
+  const unitItem = findByKey(snapshot.content, unitKey, sandbox);
+  const stats = [...resolution.statOrder.filter((s) => s in resolution.derivations), ...Object.keys(resolution.derivations).filter((s) => !resolution.statOrder.includes(s))];
+
+  const pinPair = async (step: AppliedStep, previous: AppliedStep) => {
+    if (!resolution.context) return;
+    await data.pin(sandbox, { context: resolution.context.key, unit: unitKey, stat: openStat!, first: step.ruleKey, then: previous.ruleKey });
+    await onChanged();
+  };
+  const removePin = async (entryId: string) => {
+    await data.withdrawEntry(sandbox, entryId, "pin removed from the unit card");
+    await onChanged();
+  };
 
   return (
     <>
-      <button className="link" onClick={onBack}>
-        ‹ Back
-      </button>
+      <button className="link" onClick={onBack}>‹ Back</button>
       <h1>{resolution.label}</h1>
-      <p className="muted">Raised {resolution.raised} · {unitKey}</p>
-      <ItemText content={snapshot.content} itemKey={unitKey} label="View unit text" />
+      <p className="muted">
+        Raised {resolution.raised} · {unitKey}
+        {resolution.context ? " · " + resolution.context.label : ""}
+        {resolution.manifest ? " (" + resolution.manifest.label + ")" : ""}
+      </p>
+      {resolution.contextWarnings.map((w, i) => (
+        <p key={i} className="problem-warning">{w}</p>
+      ))}
+      {unitItem && <ItemText all={snapshot.all} item={unitItem} label="View unit text" />}
 
-      <label htmlFor="read-date">Read date</label>
-      <div className="row">
-        <button onClick={() => setReadDate(readDate - 1)} aria-label="One earlier">−</button>
-        <input id="read-date" type="number" inputMode="numeric" value={readDate} style={{ width: 110 }}
-          onChange={(e) => e.target.value !== "" && setReadDate(Number(e.target.value))} />
-        <button onClick={() => setReadDate(readDate + 1)} aria-label="One later">+</button>
-      </div>
+      <ReadDate value={readDate} onChange={setReadDate} />
 
       <h2>Profile at {readDate}</h2>
       {resolution.notYetRaised && (
@@ -58,7 +76,7 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
           <p className="muted">In {readDate} this unit doesn't exist yet. Shown: the printed profile, with no rules read.</p>
         </div>
       )}
-      <div className="stats" style={resolution.notYetRaised ? { opacity: 0.45 } : undefined}>
+      <div className={"stats" + (resolution.notYetRaised ? " faded" : "")}>
         {stats.map((stat) => {
           const derivation = resolution.derivations[stat];
           const changed = derivation.final !== derivation.base;
@@ -71,7 +89,17 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
         })}
       </div>
       <p className="muted">Tap a value to see how it was worked out.</p>
-      {openStat && <DerivationView derivation={resolution.derivations[openStat]} />}
+      {openStat && (
+        <DerivationView
+          derivation={resolution.derivations[openStat]}
+          context={context}
+          unitKey={unitKey}
+          canPin={resolution.context !== null}
+          onPin={pinPair}
+          onRemovePin={removePin}
+          onOpenRule={(key) => onOpenItem(itemRef({ space: "library", key }))}
+        />
+      )}
 
       {resolution.clashes.length > 0 && (
         <div className="card">
@@ -79,13 +107,14 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
           {resolution.clashes.map((clash, i) => (
             <p key={i} className="problem-warning">{clash.message}</p>
           ))}
+          <p className="muted">Nothing decided this order. Pin one rule before the other in the derivation to settle it.</p>
         </div>
       )}
 
-      {!resolution.notYetRaised && <h2>Rules</h2>}
+      {!resolution.notYetRaised && <h2>Rules in this context</h2>}
       {resolution.rules.map((check) => (
         <div key={check.ruleKey} className="card">
-          <button className="list-button" style={{ border: "none", padding: 0 }} onClick={() => setOpenRule(openRule === check.ruleKey ? null : check.ruleKey)}>
+          <button className="list-button bare" onClick={() => setOpenRule(openRule === check.ruleKey ? null : check.ruleKey)}>
             <span>
               {check.ruleLabel} <span className="muted">({check.stat})</span>
             </span>
@@ -93,32 +122,17 @@ export function UnitScreen({ data, snapshot, unitKey, onBack, onOpenItem, onChan
           </button>
           {openRule === check.ruleKey && <WhyNotTree check={check} />}
           <div className="row">
-            <ItemText content={snapshot.content} itemKey={check.ruleKey} label="View rule" />
-            <button className="link" style={{ marginTop: 8 }} onClick={() => onOpenItem(check.ruleKey)}>Open rule</button>
+            {findByKey(snapshot.content, check.ruleKey, sandbox) && (
+              <ItemText all={snapshot.all} item={findByKey(snapshot.content, check.ruleKey, sandbox)!} label="View rule" />
+            )}
+            <button className="link gap-top" onClick={() => onOpenItem(itemRef({ space: "library", key: check.ruleKey }))}>Open rule</button>
           </div>
         </div>
       ))}
 
-      <EventToggles data={data} snapshot={snapshot} onChanged={onChanged} />
+      <EventToggles data={data} sandbox={sandbox} snapshot={snapshot} onChanged={onChanged} />
     </>
   );
-}
-
-// The latest date anything starts on, so the card opens "now".
-function latestDate(snapshot: Snapshot): number {
-  const dates: number[] = [];
-  for (const item of snapshot.content) {
-    if (item.class === "unit") dates.push(item.raised);
-    if (item.class === "link" || item.class === "event") dates.push(item.start, ...(item.end === null ? [] : [item.end]));
-  }
-  for (const entry of snapshot.log) if (entry.body.order.inWorldDate !== null) dates.push(entry.body.order.inWorldDate);
-  return dates.length ? Math.max(...dates) + 1 : 2525;
-}
-
-function orderedStats(resolution: UnitResolution): string[] {
-  const known = STAT_ORDER.filter((stat) => stat in resolution.derivations);
-  const others = Object.keys(resolution.derivations).filter((stat) => !STAT_ORDER.includes(stat));
-  return [...known, ...others];
 }
 
 function formatNumber(value: number): string {
@@ -141,9 +155,22 @@ function describeEdit(step: AppliedStep): string {
   }
 }
 
-// rules-overlay.md §13: kind, source, before -> after, base, scope matched, trigger, step and
-// read date, what decided the order, outcome. Losers kept with their reason.
-function DerivationView({ derivation }: { derivation: ValueDerivation }) {
+interface DerivationProps {
+  derivation: ValueDerivation;
+  context: ContextView | null;
+  unitKey: string;
+  canPin: boolean;
+  onPin: (step: AppliedStep, previous: AppliedStep) => void;
+  onRemovePin: (entryId: string) => void;
+  onOpenRule: (key: string) => void;
+}
+
+// rules-overlay.md §13: kind, source, before -> after, base, scope matched (and the kind it read),
+// trigger, step and read date, what decided the order, outcome. Losers kept with their reason.
+function DerivationView({ derivation, context, unitKey, canPin, onPin, onRemovePin, onOpenRule }: DerivationProps) {
+  const pinFor = (a: string, b: string) =>
+    context?.pins.find((p) => p.stat === derivation.stat && (p.unit === null || p.unit === unitKey) && ((p.first === a && p.then === b) || (p.first === b && p.then === a)));
+
   return (
     <div className="card">
       <h3>
@@ -153,34 +180,51 @@ function DerivationView({ derivation }: { derivation: ValueDerivation }) {
         Start: {formatNumber(derivation.base)} <span className="muted">({derivation.baseNote})</span>
       </p>
       <div className="steps">
-        {derivation.steps.map((step, i) => (
-          <div key={i} style={{ marginBottom: 12 }}>
-            <p>
-              <strong>{step.ruleLabel}</strong> {describeEdit(step)}: {formatNumber(step.before)} → <strong>{formatNumber(step.after)}</strong>
-            </p>
-            <p className="muted">
-              {step.step} step, read {step.readDateNote} · {step.sourceLayer} · category {step.category}
-              {step.base ? " · base " + step.base : ""}
-            </p>
-            <p className="muted">Order: {step.decidedByNote}</p>
-            {step.ifSwappedWithPrevious !== null && (
-              <p className="muted">Swapped with the step before: {formatNumber(step.ifSwappedWithPrevious)}</p>
-            )}
-            <Trace trace={step.scope} />
-            {step.trigger && <Trace trace={step.trigger} />}
-          </div>
-        ))}
+        {derivation.steps.map((step, i) => {
+          const previous = i > 0 ? derivation.steps[i - 1] : null;
+          const samePlace = previous !== null && previous.step === step.step && previous.targetPoint === step.targetPoint;
+          const pin = previous ? pinFor(step.ruleKey, previous.ruleKey) : undefined;
+          return (
+            <div key={step.ruleKey} className="step">
+              <p>
+                <button className="link" onClick={() => onOpenRule(step.ruleKey)}><strong>{step.ruleLabel}</strong></button> {describeEdit(step)}:{" "}
+                {formatNumber(step.before)} → <strong>{formatNumber(step.after)}</strong>
+              </p>
+              <p className="muted">
+                {step.step} step, read {step.readDateNote} · {step.sourceLayer} · category {step.category}
+                {step.base ? " · base " + step.base : ""}
+              </p>
+              {step.scopeKind && <p className="muted">Scope target: {step.scopeKind}</p>}
+              <p className="muted">Order: {step.decidedByNote}</p>
+              {/* Only a pair whose order changes the value can be pinned or swapped. */}
+              {canPin && previous && samePlace && !pin && step.ifSwappedWithPrevious !== null && (
+                <div className="row">
+                  <button className="small" onClick={() => onPin(previous, step)}>Pin this order</button>
+                  <button className="small" onClick={() => onPin(step, previous)}>
+                    Swap: run before {previous.ruleLabel} (gives {formatNumber(step.ifSwappedWithPrevious)})
+                  </button>
+                </div>
+              )}
+              {pin && (
+                <button className="small" onClick={() => onRemovePin(pin.entryId)}>Remove pin</button>
+              )}
+              <Trace trace={step.scope} />
+              {step.trigger && <Trace trace={step.trigger} />}
+            </div>
+          );
+        })}
         {derivation.steps.length === 0 && <p className="muted">No rule changes it.</p>}
       </div>
       {derivation.lost.length > 0 && (
         <>
           <h3>Didn't apply</h3>
           {derivation.lost.map((lost) => (
-            <div key={lost.ruleKey} style={{ marginBottom: 8 }}>
+            <div key={lost.ruleKey} className="step">
               <p>
                 {lost.ruleLabel}: <span className="problem-warning">{lost.outcome}</span>{" "}
                 <span className="muted">(read {lost.readDateNote})</span>
               </p>
+              {lost.outcomeNote && <p className="muted">{lost.outcomeNote}</p>}
               <Trace trace={lost.scope} />
               {lost.trigger && <Trace trace={lost.trigger} />}
             </div>
@@ -191,19 +235,19 @@ function DerivationView({ derivation }: { derivation: ValueDerivation }) {
   );
 }
 
-// rules-overlay.md §13: a rule applies when four tests pass.
-function WhyNotTree({ check }: { check: RuleCheck }) {
+// rules-overlay.md §13: a rule applies when every test passes.
+export function WhyNotTree({ check }: { check: RuleCheck }) {
   return (
-    <div style={{ marginTop: 8 }}>
+    <div className="gap-top">
       <p className="muted">
         {check.nature} rule, {check.step} step, read {check.readDateNote}
       </p>
       {check.tests.map((test) => (
-        <div key={test.name} style={{ marginBottom: 6 }}>
+        <div key={test.name} className="step">
           <div>
             <TruthTag value={test.result} /> <strong>{test.name}</strong>
           </div>
-          <div style={{ marginLeft: 14 }}>
+          <div className="indent">
             {test.trace && <Trace trace={test.trace} />}
             {test.note && <p className="muted">{test.note}</p>}
           </div>
@@ -213,8 +257,8 @@ function WhyNotTree({ check }: { check: RuleCheck }) {
   );
 }
 
-// Events in the log, with withdraw / add again: the quick way to flip a trigger.
-function EventToggles({ data, snapshot, onChanged }: { data: AppData; snapshot: Snapshot; onChanged: () => Promise<void> }) {
+// Events in the sandbox's log, with withdraw / add again: the quick way to flip a trigger.
+function EventToggles({ data, sandbox, snapshot, onChanged }: { data: AppData; sandbox: string; snapshot: Snapshot; onChanged: () => Promise<void> }) {
   const events = snapshot.log.filter((entry) => entry.body.content.kind === "event");
   if (events.length === 0) return null;
 
@@ -239,11 +283,9 @@ function EventToggles({ data, snapshot, onChanged }: { data: AppData; snapshot: 
               </span>
             </span>
             {standing ? (
-              <button onClick={async () => { await data.withdrawEntry(entry.id, "withdrawn from the unit card"); await onChanged(); }}>
-                Withdraw
-              </button>
+              <button onClick={async () => { await data.withdrawEntry(sandbox, entry.id, "withdrawn from the unit card"); await onChanged(); }}>Withdraw</button>
             ) : (
-              <button onClick={async () => { await data.addEvent(event); await onChanged(); }}>Add again</button>
+              <button onClick={async () => { await data.addEvent(sandbox, event); await onChanged(); }}>Add again</button>
             )}
           </div>
         );
