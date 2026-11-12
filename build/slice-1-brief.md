@@ -13,7 +13,7 @@ Slice 1 is bigger than slice 0. Build it **in parts, in this order**; each part 
 | Part | What | Acceptance |
 |---|---|---|
 | **A** | Containers; slice 0's GM fixes and display feedback | E1, E2, E4 still pass; C1, C2 |
-| **B** | Army list and roster builder, standing alone or in a world | L1, L2 |
+| **B** | Races and tiers; army list and roster builder, standing alone or in a world | L1, L2, L3 |
 | **C** | Two logins, roles, grants, view-as, a sealed secret | J1 |
 | **D** | The submission route | I1 (cut down, §5) |
 | **E** | A battle record with its lock (no map) | G1 |
@@ -102,7 +102,8 @@ _C1 and C2 are new cases written for this brief from `rules-overlay.md` §12 and
 
 ### 3.1 What's built
 - **Manifest content** for one edition by text import: model statline, classes (unit, special rule, equipment, option group, army list), army categories and their limits as simple rules (`manifest.md` §1–4, §9).
-- **Army list content**: units with profile, base cost per model, minimum size, options (option groups with costs per model or per unit, one-of or any-of), equipment, special rules as text (`army-lists.md`, `races-and-units.md`, `options-items-and-rules.md`). Rules-as-text boxes shown on the card.
+- **Races, tiers and unit deltas** (`races-and-units.md` §1–2, DECIDED; the resolver's step kinds *race base · parent race · tier step · unit delta*, `resolver.md` §13): a profile is built as **race base** (walking up *extends*: Black Orc → Orc) → **tier axis** steps (the rank axis: normal → champion → hero → lord) → the **unit's delta** → racial maximums as caps. Statlines are **entered as printed**; the stored delta is printed − derived against the unpatched base, so a patch on the race ("all Orcs +1 S") reaches every unit of that race and its child races. Every step shows in the derivation. **Out**: dependent axes (careers keyed by level), pooled axes, the dependent-changes view (§3).
+- **Army list content**: units with their profile (as above), base cost per model, minimum size, options (option groups with costs per model or per unit, one-of or any-of), equipment, special rules as text (`army-lists.md`, `races-and-units.md`, `options-items-and-rules.md`). Rules-as-text boxes shown on the card.
 - **Roster builder** (play screen, phone-first): new roster from an army list → add units → size → tick options → points total, by category, against a limit → **validation** with the issue shown (over the limit, a category limit broken, below minimum size) (`rosters.md`; `validation-and-fixes.md`, issues and severities only; fixes later).
 - **Two kinds of roster** (§1.3):
   - **practice**: outside any sandbox; resolves with army-list rules only;
@@ -117,7 +118,9 @@ Draws and allocation, inventory, split / merge / transform, contingents, locks, 
 - **L1 — a pick-up list with no world.** A practice roster from the fixture army list: Handgunners ×10 with a champion and a musician, plus one other unit. Points total and per category correct against the list's costs; one category limit broken shows as an issue; Ld reads **7** (printed profile; no world, no world rules). Nothing is written to any log.
 - **L2 — the same list, registered.** The same units as a registered roster in E1's sandbox: the Handgunners raised at Nuln 2520, member of the Gunnery School, stationed at Nuln. Ld at 2525 = **7** with wages withheld, **8** with wages paid — the E1 values, now coming through the roster. The derivation shows the army-list base first, then the world steps.
 
-_L1 and L2 are new cases written for this brief from §1.3. **Fixture armies** (owner, 12 Nov): **WFB 6th edition Empire** by default; where a case needs a second player in the same manifest, **WFB 6th edition Orcs & Goblins**; a case written for another game uses that game. Keep the fixture lists small (a handful of units each); points and profiles as printed in the books._
+- **L3 — racial deltas.** Fixture races: Human (Empire), Orc, Black Orc *extends* Orc, each with the rank axis. (a) Handgunners entered as printed: the derivation reads race base Human → unit delta (0 where printed = base) → Ld 7. (b) The Handgunner champion (Marksman) reads Human → **champion tier step** (+1 BS) → the printed champion line. (c) A homebrew package "Brutal Orcs: S +1 to race Orc", switched on in a context: Orc Boyz and Black Orcs both S 4 → 5, with the derivation step "race Orc, homebrew"; a selector narrowed to "Orc only" leaves Black Orcs at 4. (d) Switched off, everything is back as printed.
+
+_L1–L3 are new cases written for this brief from §1.3 and `races-and-units.md` §2._ _(L1 and L2 as above.)_ **Fixture armies** (owner, 12 Nov): **WFB 6th edition Empire** by default; where a case needs a second player in the same manifest, **WFB 6th edition Orcs & Goblins**; a case written for another game uses that game. Keep the fixture lists small (a handful of units each); points and profiles as printed in the books._
 
 ---
 
