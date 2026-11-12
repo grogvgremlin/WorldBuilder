@@ -117,7 +117,7 @@ Draws and allocation, inventory, split / merge / transform, contingents, locks, 
 - **L1 — a pick-up list with no world.** A practice roster from the fixture army list: Handgunners ×10 with a champion and a musician, plus one other unit. Points total and per category correct against the list's costs; one category limit broken shows as an issue; Ld reads **7** (printed profile; no world, no world rules). Nothing is written to any log.
 - **L2 — the same list, registered.** The same units as a registered roster in E1's sandbox: the Handgunners raised at Nuln 2520, member of the Gunnery School, stationed at Nuln. Ld at 2525 = **7** with wages withheld, **8** with wages paid — the E1 values, now coming through the roster. The derivation shows the army-list base first, then the world steps.
 
-_L1 and L2 are new cases written for this brief from §1.3. **The fixture army** (edition, army, units, costs) is the owner's choice — see §10. Until then, use a small WFB 6th Empire list with made-up costs, marked as placeholder._
+_L1 and L2 are new cases written for this brief from §1.3. **Fixture armies** (owner, 12 Nov): **WFB 6th edition Empire** by default; where a case needs a second player in the same manifest, **WFB 6th edition Orcs & Goblins**; a case written for another game uses that game. Keep the fixture lists small (a handful of units each); points and profiles as printed in the books._
 
 ---
 
@@ -150,7 +150,7 @@ _J1 is the first of the Visibility cases (section J) that `handover-session-20.m
 - **Auto-accept**: the setting exists (default off); not built.
 
 ### 5.2 Acceptance
-- **I1, cut down.** Bea's warband vs Cal's (fixture content; Mordheim or the slice's army, owner's call §10). Bea enters a post-battle batch of items as text (no outcome feed: there's no battle engine). Expected as `test-corpus-v2.md` I1: unchanged items hidden behind "show all"; bulk accept takes gold and XP but not Karl's death or the shard; she ticks both; one commit writes the entries; the wyrdstone entry reads "proposed +2 · committed +3 by Bea · re-roll from *Lucky*"; the shard entry records "signed off by Bea"; nothing reaches the log before commit. **Then** it travels as a submission: the GM accepts all but the shard, which he declines with a reason; Bea sees it returned with the reason.
+- **I1, cut down.** Bea's Reikland warband vs Cal's Clan Skaar: I1 is written for **Mordheim**, so it uses a small Mordheim manifest and two small warband lists (fixture rule, §3.3). Two manifests on one device is also a check on Part A's containers. Bea enters a post-battle batch of items as text (no outcome feed: there's no battle engine). Expected as `test-corpus-v2.md` I1: unchanged items hidden behind "show all"; bulk accept takes gold and XP but not Karl's death or the shard; she ticks both; one commit writes the entries; the wyrdstone entry reads "proposed +2 · committed +3 by Bea · re-roll from *Lucky*"; the shard entry records "signed off by Bea"; nothing reaches the log before commit. **Then** it travels as a submission: the GM accepts all but the shard, which he declines with a reason; Bea sees it returned with the reason.
 - **Dice are out** (§9): the re-roll is a manual edit with a reason.
 
 ### 5.3 Q8 must be answered before Part D
@@ -184,15 +184,11 @@ Where acceptance is recorded, given nothing is edited in place and status sits i
 
 ## 8. Design docs to copy into `design/`
 
-Already there: `infra.md`, `rules-overlay.md`, `resolver.md`, `text-format-and-csv.md`, `test-corpus-v2.md`, `world-structure.md`, `glossary-v2.md`, `v2-reconciliation.md`.
+From slice 0: `infra.md`, `rules-overlay.md`, `resolver.md`, `text-format-and-csv.md`, `test-corpus-v2.md`, `world-structure.md`, `glossary-v2.md`, `v2-reconciliation.md`.
 
-Add:
-- `rules/manifest.md`, `rules/army-lists.md`, `rules/races-and-units.md`, `rules/options-items-and-rules.md`, `rules/patches.md`
-- `core/items-packages-and-library.md`, `core/validation-and-fixes.md`, `core/identity-and-versioning.md`
-- `roster/rosters.md`
-- `pillars/visibility.md`
-- `pillars/campaign-loop.md` (§1, §7, §9 matter)
-- `pillars/battle.md` (§4, §8 matter)
+**Copied 12 Nov for Parts A–B:** `manifest.md`, `army-lists.md`, `races-and-units.md`, `options-items-and-rules.md`, `patches.md`, `items-packages-and-library.md`, `validation-and-fixes.md`, `rosters.md`. These are v1 in shape: where they speak of nodes, attachment and working contexts, §2.1 above says what that means now.
+
+**To copy before Parts C–E** (ask through the build log if you get there first): `core/identity-and-versioning.md`, `pillars/visibility.md`, `pillars/campaign-loop.md` (§1, §7, §9 matter), `pillars/battle.md` (§4, §8 matter).
 
 **Not yet folded into the design docs** (sessions 20–21): the server (§1.5) — `infra.md` §4–6 still say "host"; read "host" as "the device standing in for the server". The answers in §1.1. The cases C1, C2, L1, L2, J1.
 
@@ -211,6 +207,6 @@ Listed so they aren't built by accident:
 ---
 
 ## 10. Owner decisions wanted (none blocks Part A)
-1. **Which army and edition** for the fixture list (Part B) — and whether I1 uses Mordheim or that same army (Part D).
+1. ~~Which army and edition~~ — answered 12 Nov: WFB 6th Empire; 6th Orcs & Goblins as a second player; another game where a case is written for it (§3.3).
 2. **Q8** before Part D (§5.3).
 3. Q1, Q4, Q6, Q7 when convenient; slice 0's behaviour stands meanwhile.

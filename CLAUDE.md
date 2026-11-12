@@ -53,5 +53,8 @@ These are expensive to retrofit (design: `design/infra.md`).
 - `build/` — slice briefs, the build log and the structure guide.
 - `schema/` — the emitted JSON Schema.
 
+## Fixture armies (owner, 12 Nov 2026)
+WFB 6th edition **Empire** by default. A second player in the same manifest: WFB 6th **Orcs & Goblins**. A case written for another game (Mordheim's I1) uses that game.
+
 ## Out of scope until a brief says otherwise
 Sync, the server, real encryption, maps, rule and world editors, decks and dice. Their shapes exist in the schema; their behaviour does not. (Multiple logins and submissions come in with slice 1.)
