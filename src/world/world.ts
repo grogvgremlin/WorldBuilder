@@ -5,9 +5,24 @@
 // in force(thing or kind, roles)); design/infra.md §1 (world state is rebuilt from content and
 // the log, never edited).
 //
-// Pure: builds from content and accepted log entries, does no I/O.
+// Pure: builds from content and accepted log entries, does no I/O. The content given is the
+// library plus one sandbox (store.contentForSandbox), so keys are unique within it.
 
-import type { ContentItem, EventRecord, Link, NamedScope, Package, ReachTarget, RouteStep, Rule, Thing, Unit } from "../schema";
+import type {
+  ContentItem,
+  EventRecord,
+  Link,
+  Manifest,
+  ManifestContext,
+  NamedScope,
+  Package,
+  ReachTarget,
+  RouteStep,
+  Rule,
+  Sandbox,
+  Thing,
+  Unit,
+} from "../schema";
 import type { AcceptedEntry } from "../log/log";
 
 // An event in force at some time, wherever it was recorded.
@@ -23,7 +38,13 @@ export interface World {
   rules: Rule[];
   scopes: Map<string, NamedScope>;
   packages: Map<string, Package>;
+  manifests: Map<string, Manifest>;
+  sandboxes: Map<string, Sandbox>;
+  contexts: Map<string, ManifestContext>;
+  fixes: AcceptedEntry[]; // accepted GM-fix entries (package switches, orders, pins), in log order
 }
+
+const FIX_KINDS = new Set(["package_switch", "category_order", "pin"]);
 
 // --- Building the world ----------------------------------------------------
 
@@ -36,6 +57,10 @@ export function buildWorld(content: ContentItem[], entries: AcceptedEntry[]): Wo
     rules: [],
     scopes: new Map(),
     packages: new Map(),
+    manifests: new Map(),
+    sandboxes: new Map(),
+    contexts: new Map(),
+    fixes: [],
   };
   const sorted = [...content].sort((a, b) => a.key.localeCompare(b.key));
   for (const item of sorted) addContentItem(world, item);
@@ -74,11 +99,22 @@ function addContentItem(world: World, item: ContentItem): void {
     case "package":
       world.packages.set(item.key, item);
       break;
+    case "manifest":
+      world.manifests.set(item.key, item);
+      break;
+    case "sandbox":
+      world.sandboxes.set(item.key, item);
+      break;
+    case "context":
+      world.contexts.set(item.key, item);
+      break;
   }
 }
 
-// Event entries add events. Other entry kinds (withdrawals) have already done their job.
+// Event entries add events; GM fixes are kept for the context to read. Withdrawals have
+// already done their job.
 function addLogEntry(world: World, entry: AcceptedEntry): void {
+  if (FIX_KINDS.has(entry.body.content.kind)) world.fixes.push(entry);
   if (entry.body.content.kind !== "event") return;
   const event = entry.body.content.values.event as EventRecord;
   world.events.push({ ...event, recordedIn: { from: "log", entryId: entry.id } });

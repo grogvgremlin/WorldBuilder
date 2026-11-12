@@ -57,7 +57,7 @@ Fill in the blanks (`__`). This is the shape Part B will import; it follows `des
 
 ```yaml
 package: [Empire (WFB 6th), wfb6_empire]
-manifest: wfb6
+edition: wfb6                # the manifest this list belongs to
 army_list: [Empire, empire]
 source: [Warhammer Armies: Empire, 6th edition]
 

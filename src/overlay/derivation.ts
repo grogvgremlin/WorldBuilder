@@ -22,7 +22,8 @@ export type OrderReason =
   | "source layer" // book -> FAQ -> house rules -> campaign
   | "category" // the step's category order
   | "depth" // nearer on a shared chain applies later
-  | "bag"; // nothing decided: add before multiply, with a clash notice if it matters
+  | "pin" // a GM pin put this pair in this order
+  | "bag"; // nothing decided: the bag order (add before multiply), with a clash notice if it matters
 
 // When and how a rule read the world.
 export interface ReadInfo {
@@ -42,7 +43,9 @@ export interface AppliedStep extends ReadInfo {
   category: string;
   base: string | null;
   scope: ConditionTrace;
+  scopeKind: string | null; // "Nuln (settlement · polity), read as a place" — rules-overlay §6
   trigger: ConditionTrace | null;
+  packageKey: string | null;
   decidedBy: OrderReason;
   decidedByNote: string;
   before: number;
@@ -56,7 +59,8 @@ export interface AppliedStep extends ReadInfo {
 export interface LostStep extends ReadInfo {
   ruleKey: string;
   ruleLabel: string;
-  outcome: "scope not matched" | "scope can't tell" | "trigger false" | "trigger can't tell";
+  outcome: "not in play: package off in this context" | "scope not matched" | "scope can't tell" | "trigger false" | "trigger can't tell";
+  outcomeNote: string; // e.g. who switched the package off, and when
   scope: ConditionTrace;
   trigger: ConditionTrace | null;
 }
@@ -79,7 +83,7 @@ export interface ValueDerivation {
 
 // One of the four tests in the "why not?" tree.
 export interface TreeTest {
-  name: "scope matched" | "trigger true" | "not switched off" | "not ignored";
+  name: "in play in this context" | "scope matched" | "trigger true" | "not switched off" | "not ignored";
   result: TruthValue;
   trace: ConditionTrace | null;
   note: string;

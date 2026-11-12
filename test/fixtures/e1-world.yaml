@@ -1,0 +1,32 @@
+# E1 world (design/test-corpus-v2.md E1): a sandbox with one WFB 6th context.
+# Read 2525 with "wages withheld" in force -> Ld 7. Withdraw that log entry -> 8.
+
+sandbox: [E1 Nuln, e1]
+
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6
+    packages: [wfb6_base, e1_rules, wissenland_campaign_rules]
+
+things:
+  - [Nuln, nuln, [settlement, polity]]
+  - [Wissenland, wissenland, [polity]]
+  - [Gunnery School, gunnery_school, [organisation]]
+  - [Wissenland treasury, wissenland_treasury, [organisation]]
+  - [Handgunners' commission, handgunner_commission, [commission]]
+
+links:
+  # [from, kind, to, start, end]
+  - [nuln, in, wissenland, 2000]
+  - [handgunner_commission, paid_by, wissenland_treasury, 2519]
+
+units:
+  - unit: [Nuln Handgunners, nuln_handgunners]
+    raised: 2520
+    profile: [3, 3, 3, 3, 3, 1, 3, 1, 7]   # the manifest's stat order: M WS BS S T W I A Ld
+    links:
+      # [kind, to, start, end]; start defaults to the raising date
+      - [raised_at, nuln]
+      - [member_of, gunnery_school]
+      - [serves, handgunner_commission]
+      - [stationed_at, nuln]

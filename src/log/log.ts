@@ -1,11 +1,13 @@
 // Appending entries, entry status, withdrawal, and reading the log.
 // Design: design/infra.md §1–2 (append-only; withdrawal is a new entry, the original stays and
-// is skipped by derivations), §6 (status: awaiting host -> accepted / declined), §8 (shape).
+// is skipped by derivations), §6 (status: awaiting host -> accepted / declined), §8 (shape);
+// design/rules-overlay.md §12 (GM fixes are dated: category-order edits and pins);
+// build/slice-1-brief.md §1.2, §2.1 (one log per sandbox; fixes as entries).
 //
 // Slice 0: one user and no host, so every entry is appended as "accepted".
 // "Withdrawn" is never written onto the original: it is read from the withdrawal entry.
 
-import type { EntryBody, EntryStatus, EventRecord, LogEnvelope } from "../schema";
+import type { CategoryOrderValues, EntryBody, EntryStatus, EventRecord, LogEnvelope, PackageSwitchValues, PinValues } from "../schema";
 import type { Store } from "../store/store";
 import { unseal, type Viewer } from "./unseal";
 
@@ -63,10 +65,11 @@ export function makeEntry(deps: LogDeps, input: NewEntry): LogEnvelope {
   };
 }
 
-// Appends an event entry ("wages withheld"). Returns the new entry's ID.
+// Appends an event entry ("wages withheld") to a sandbox's log. Returns the new entry's ID.
 export async function appendEvent(
   store: Store,
   deps: LogDeps,
+  sandbox: string,
   event: EventRecord,
   inWorldDate: number,
   commitBatch: string | null = null,
@@ -78,13 +81,13 @@ export async function appendEvent(
     values: { event },
     commitBatch,
   });
-  await store.appendEntry(entry);
+  await store.appendEntry(sandbox, entry);
   return entry.id;
 }
 
 // Withdraws an entry ("it never happened") by appending a withdrawal entry.
 // The original stays in the log and shows in the audit view.
-export async function withdraw(store: Store, deps: LogDeps, entryId: string, reason: string): Promise<string> {
+export async function withdraw(store: Store, deps: LogDeps, sandbox: string, entryId: string, reason: string): Promise<string> {
   const entry = makeEntry(deps, {
     kind: "withdrawal",
     inWorldDate: null,
@@ -92,7 +95,31 @@ export async function withdraw(store: Store, deps: LogDeps, entryId: string, rea
     values: { reason },
     withdraws: entryId,
   });
-  await store.appendEntry(entry);
+  await store.appendEntry(sandbox, entry);
+  return entry.id;
+}
+
+// --- GM fixes (rules-overlay §12): out of fiction, so no in-world date ---------------------
+
+// A package switched on or off in a manifest context.
+export async function switchPackage(store: Store, deps: LogDeps, sandbox: string, values: PackageSwitchValues): Promise<string> {
+  return appendFix(store, deps, sandbox, "package_switch", [values.context, values.package], values);
+}
+
+// The category run order for one step, set for a manifest context (the bulk GM fix).
+export async function setCategoryOrder(store: Store, deps: LogDeps, sandbox: string, values: CategoryOrderValues): Promise<string> {
+  return appendFix(store, deps, sandbox, "category_order", [values.context], values);
+}
+
+// One rule before another on one value (the GM fix for a single pair).
+export async function pinOrder(store: Store, deps: LogDeps, sandbox: string, values: PinValues): Promise<string> {
+  const targets = [values.context, values.first, values.then, ...(values.unit ? [values.unit] : [])];
+  return appendFix(store, deps, sandbox, "pin", targets, values);
+}
+
+async function appendFix(store: Store, deps: LogDeps, sandbox: string, kind: string, targets: string[], values: object): Promise<string> {
+  const entry = makeEntry(deps, { kind, inWorldDate: null, targets, values: { ...values } });
+  await store.appendEntry(sandbox, entry);
   return entry.id;
 }
 
@@ -147,11 +174,12 @@ function markWithdrawals(entries: ReadEntry[]): void {
 // The entries derivations read: accepted, and not withdrawn.
 export interface AcceptedEntry {
   id: string;
+  recordedTime: string; // outside the seal; shown as the date of a GM fix
   body: EntryBody;
 }
 
 export function acceptedEntries(entries: LogEnvelope[], viewer: Viewer): AcceptedEntry[] {
   return readLog(entries, viewer)
     .filter((entry) => entry.status === "accepted")
-    .map((entry) => ({ id: entry.id, body: entry.body }));
+    .map((entry) => ({ id: entry.id, recordedTime: entry.recordedTime, body: entry.body }));
 }

@@ -1,23 +1,22 @@
-// Order within a step, and the category order per step.
+// Order within a step.
 // Design: design/rules-overlay.md §8 (target point -> source layer -> category -> depth -> bag),
-// §12 (category order per step, default shipped), design/resolver.md §5.2 (target points),
-// §5.3 (bags: add before multiply; two different sets clash), §5.6 (clash notice).
+// §12 (category order per step, editable; pins for a single pair), design/resolver.md §5.2
+// (target points), §5.3 (bags: add before multiply; two different sets clash), §5.6 (clash
+// notice); build/slice-1-brief.md §1.2 (category order and bag order come from the manifest,
+// overridable per context; pins are dated GM fixes).
 
-import { SOURCE_LAYER_ORDER, type EditKind, type TargetPoint } from "../schema";
+import { SOURCE_LAYER_ORDER, type CategoryRanks, type EditKind, type TargetPoint } from "../schema";
 import type { Route } from "../world/world";
 import type { FoldStepName, OrderReason } from "./derivation";
 
 export const TARGET_POINT_ORDER: TargetPoint[] = ["statline", "inline", "end"];
 
-// rules-overlay.md §12: default category order per step. Categories on one rank share it.
-// Shipped as a constant in slice 0; editing it per campaign is later.
-export const CATEGORY_ORDER: Record<FoldStepName, string[][]> = {
-  origin: [["place"], ["organisation", "title"]],
-  stationed: [["place"], ["organisation", "title"]],
-};
-
-// resolver.md §5.3: inside a bag, kinds run in this order.
-const BAG_KIND_ORDER: EditKind[] = ["set", "add", "multiply", "cap", "floor"];
+// What the context says about order, for one value on one unit.
+export interface OrderConfig {
+  categoryOrder: Record<FoldStepName, CategoryRanks>;
+  bagOrder: EditKind[];
+  pins: { first: string; then: string }[]; // already narrowed to this unit and stat
+}
 
 // A rule that passed its four tests, waiting to be folded into one value.
 export interface Candidate {
@@ -31,8 +30,7 @@ export interface Candidate {
   chainRoute: Route | null; // the route of a direct `reaches` on one thing, for depth
 }
 
-export function categoryRank(step: FoldStepName, category: string): number {
-  const ranks = CATEGORY_ORDER[step];
+export function categoryRank(ranks: CategoryRanks, category: string): number {
   const found = ranks.findIndex((rank) => rank.includes(category));
   return found === -1 ? ranks.length : found; // unknown categories run last
 }
@@ -80,28 +78,26 @@ export interface Ordered {
 }
 
 // Orders every candidate on one value: target point, then step, then within a step
-// source layer -> category -> depth -> bag.
-export function orderCandidates(candidates: Candidate[]): Ordered[] {
+// source layer -> category -> depth -> bag; then pins move a rule before another.
+export function orderCandidates(candidates: Candidate[], config: OrderConfig): Ordered[] {
   const ordered: Ordered[] = [];
   for (const targetPoint of TARGET_POINT_ORDER) {
     for (const step of ["origin", "stationed"] as FoldStepName[]) {
       const here = candidates.filter((c) => c.targetPoint === targetPoint && c.step === step);
-      ordered.push(...orderWithinStep(here));
+      ordered.push(...applyPins(orderWithinStep(here, config), config));
     }
   }
-  return explainOrder(ordered);
+  return explainOrder(ordered, config);
 }
 
 // Groups by (source layer, category rank), then orders each group by depth or as a bag.
-function orderWithinStep(candidates: Candidate[]): Ordered[] {
+function orderWithinStep(candidates: Candidate[], config: OrderConfig): Ordered[] {
+  const rank = (c: Candidate) => categoryRank(config.categoryOrder[c.step], c.category);
   const sorted = [...candidates].sort(
-    (a, b) =>
-      sourceLayerRank(a.sourceLayer) - sourceLayerRank(b.sourceLayer) ||
-      categoryRank(a.step, a.category) - categoryRank(b.step, b.category) ||
-      a.ruleKey.localeCompare(b.ruleKey),
+    (a, b) => sourceLayerRank(a.sourceLayer) - sourceLayerRank(b.sourceLayer) || rank(a) - rank(b) || a.ruleKey.localeCompare(b.ruleKey),
   );
   const result: Ordered[] = [];
-  for (const group of groupBy(sorted, (c) => c.sourceLayer + "|" + categoryRank(c.step, c.category))) {
+  for (const group of groupBy(sorted, (c) => c.sourceLayer + "|" + rank(c))) {
     if (group.length === 1) {
       result.push({ candidate: group[0], decidedBy: "first", inBag: false });
     } else if (depthDecides(group)) {
@@ -109,26 +105,45 @@ function orderWithinStep(candidates: Candidate[]): Ordered[] {
       const byDepth = [...group].sort((a, b) => b.chainRoute!.depth - a.chainRoute!.depth);
       result.push(...byDepth.map((candidate) => ({ candidate, decidedBy: "depth" as OrderReason, inBag: false })));
     } else {
-      const bag = [...group].sort(
-        (a, b) => BAG_KIND_ORDER.indexOf(a.kind) - BAG_KIND_ORDER.indexOf(b.kind) || a.ruleKey.localeCompare(b.ruleKey),
-      );
+      const kindRank = (kind: EditKind) => config.bagOrder.indexOf(kind);
+      const bag = [...group].sort((a, b) => kindRank(a.kind) - kindRank(b.kind) || a.ruleKey.localeCompare(b.ruleKey));
       result.push(...bag.map((candidate) => ({ candidate, decidedBy: "bag" as OrderReason, inBag: true })));
     }
   }
   return result;
 }
 
+// A pin puts `first` just before `then` when both are in this step at this target point.
+// Pinned rules are no longer in the bag: the GM has decided their order.
+function applyPins(ordered: Ordered[], config: OrderConfig): Ordered[] {
+  const result = [...ordered];
+  for (const pin of config.pins) {
+    const firstIndex = result.findIndex((o) => o.candidate.ruleKey === pin.first);
+    const thenIndex = result.findIndex((o) => o.candidate.ruleKey === pin.then);
+    if (firstIndex === -1 || thenIndex === -1) continue;
+    const [moved] = result.splice(firstIndex, 1);
+    const target = result.findIndex((o) => o.candidate.ruleKey === pin.then);
+    const insertAt = firstIndex < thenIndex ? firstIndex : target; // already before: stays put
+    result.splice(insertAt, 0, { ...moved, decidedBy: "pin", inBag: false });
+    const thenItem = result.findIndex((o) => o.candidate.ruleKey === pin.then);
+    result[thenItem] = { ...result[thenItem], decidedBy: "pin", inBag: false };
+  }
+  return result;
+}
+
 // Names what put each rule after the one before it: the first key on which they differ.
-function explainOrder(ordered: Ordered[]): Ordered[] {
+function explainOrder(ordered: Ordered[], config: OrderConfig): Ordered[] {
+  const rank = (c: Candidate) => categoryRank(config.categoryOrder[c.step], c.category);
   return ordered.map((current, i) => {
-    if (i === 0) return { ...current, decidedBy: "first" };
+    if (i === 0) return { ...current, decidedBy: current.decidedBy === "pin" ? "pin" : "first" };
     const previous = ordered[i - 1].candidate;
     const now = current.candidate;
     let decidedBy: OrderReason = current.decidedBy;
     if (previous.targetPoint !== now.targetPoint) decidedBy = "target point";
     else if (previous.step !== now.step) decidedBy = "step";
+    else if (current.decidedBy === "pin" && ordered[i - 1].decidedBy === "pin") decidedBy = "pin";
     else if (previous.sourceLayer !== now.sourceLayer) decidedBy = "source layer";
-    else if (categoryRank(previous.step, previous.category) !== categoryRank(now.step, now.category)) decidedBy = "category";
+    else if (rank(previous) !== rank(now)) decidedBy = "category";
     return { ...current, decidedBy };
   });
 }

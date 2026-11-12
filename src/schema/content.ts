@@ -1,22 +1,30 @@
-// Content items: things, dated links, events, rules, named scopes, packages and units.
+// Content items: things, dated links, events, rules, named scopes, packages, units, and the
+// containers (manifest, sandbox, manifest context).
 // Design: design/world-structure.md §1–3 (things, kinds, links), §7 (events are dated things),
 // §12 (units registered in the world); design/rules-overlay.md §6–8, §12 (rules as scope +
-// trigger, nature, category, source layer); design/resolver.md §5.2 (number edits and target
-// points); design/infra.md §1 (content is stored truth beside the log).
+// trigger, nature, category, source layer; category order per step); design/resolver.md §5.2
+// (number edits and target points); design/infra.md §1 (content is stored truth beside the log);
+// design/manifest.md §1–2, §9 (the manifest is content, one per edition);
+// design/items-packages-and-library.md §4 (packages); build/slice-1-brief.md §2.1 (containers).
 //
-// Every item has a `key` (author-defined, never regenerated) and a `class`.
-// Dates are plain numbers (years or day counts) in slice 0: no calendars.
+// Every item has a `key` (author-defined, never regenerated), a `class`, and a `space`: where it
+// lives. Space "library" holds packages not tied to any world (manifests, rules, army lists);
+// a sandbox's key is the space of that sandbox's world. Keys are unique within a space.
+// Dates are plain numbers (years or day counts): no calendars.
 
 import { z } from "zod";
 import { Expression } from "./expression";
 
 export const InWorldDate = z.number();
 
+export const LIBRARY = "library";
+
 // Fields every content item carries.
 const itemBase = {
   key: z.string().min(1),
   label: z.string(),
-  package: z.string().nullable(), // the package it was deployed in
+  space: z.string().min(1), // "library", or the key of the sandbox it belongs to
+  package: z.string().nullable(), // the package (or sandbox) it was deployed in
 };
 
 // --- World ---------------------------------------------------------------
@@ -70,6 +78,7 @@ export const Unit = z.object({
   ...itemBase,
   profile: z.record(z.string(), z.number()), // stat name -> value, e.g. { Ld: 7 }
   raised: InWorldDate,
+  context: z.string().nullable(), // the manifest context it's registered in; null = the sandbox's first
 });
 export type Unit = z.infer<typeof Unit>;
 
@@ -124,9 +133,52 @@ export const Package = z.object({
   class: z.literal("package"),
   ...itemBase,
   sourceLayer: SourceLayer,
+  edition: z.string().nullable(), // the manifest it belongs to
+  requires: z.array(z.string()), // other packages it needs (a warning only)
+  conflicts: z.array(z.string()), // packages it can't be used with (a warning only)
   members: z.array(z.string()), // keys of the items deployed with it, in written order
 });
 export type Package = z.infer<typeof Package>;
+
+// --- Containers -----------------------------------------------------------------
+
+// The order rules run in within a step, by category. Categories on one rank share it.
+export const CategoryRanks = z.array(z.array(z.string()));
+export type CategoryRanks = z.infer<typeof CategoryRanks>;
+
+export const StepOrders = z.object({
+  origin: CategoryRanks,
+  stationed: CategoryRanks,
+});
+export type StepOrders = z.infer<typeof StepOrders>;
+
+// One per edition, in the library. Holds what used to be constants in code.
+export const Manifest = z.object({
+  class: z.literal("manifest"),
+  ...itemBase,
+  statOrder: z.array(z.string()), // the model statline, in card order
+  categoryOrder: StepOrders, // rules-overlay §12: the default run order per step
+  bagOrder: z.array(EditKind), // resolver §5.3: kinds within a bag
+});
+export type Manifest = z.infer<typeof Manifest>;
+
+// A sandbox: one world with its own log. The item lives in its own space.
+export const Sandbox = z.object({
+  class: z.literal("sandbox"),
+  ...itemBase,
+  members: z.array(z.string()), // world items deployed into it, in written order
+});
+export type Sandbox = z.infer<typeof Sandbox>;
+
+// A manifest context: one system's part of a sandbox. Which manifest it uses, and which
+// library packages are switched on in it, in order (the GM can switch them by log entry).
+export const ManifestContext = z.object({
+  class: z.literal("context"),
+  ...itemBase,
+  manifest: z.string(),
+  packages: z.array(z.string()),
+});
+export type ManifestContext = z.infer<typeof ManifestContext>;
 
 export const ContentItem = z.discriminatedUnion("class", [
   Thing,
@@ -136,5 +188,8 @@ export const ContentItem = z.discriminatedUnion("class", [
   Rule,
   NamedScope,
   Package,
+  Manifest,
+  Sandbox,
+  ManifestContext,
 ]);
 export type ContentItem = z.infer<typeof ContentItem>;

@@ -1,0 +1,9 @@
+# E1 log: appended to sandbox e1's log as an event entry when deployed.
+
+sandbox: [E1 Nuln, e1]
+
+log:
+  - event: [Wages withheld, wages_withheld_2524]
+    kind: wages_withheld
+    roles: {withholder: wissenland_treasury}
+    period: [2524]

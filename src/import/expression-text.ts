@@ -10,6 +10,8 @@
 //   in_force(wages_withheld, withholder = wissenland_treasury)
 //   all(a, b)   any(a, b)   not(a)
 //   commissioned_by_the_treasury             a bare key: a named scope
+//   reaches("Gunnery School", member_of)     a label in quotes; the import matches it to a key
+//   (slice 1 brief §2.3, references by label; text-format §3)
 
 import type { Expression, RouteStep } from "../schema";
 
@@ -17,11 +19,12 @@ type Token = { type: "word"; text: string } | { type: "symbol"; text: string };
 
 function tokenize(text: string): Token[] {
   const tokens: Token[] = [];
-  const pattern = /\s*(?:([A-Za-z0-9_.:'-]+)|([(),=>*→]))/y;
+  const pattern = /\s*(?:"([^"]*)"|([A-Za-z0-9_.:'-]+)|([(),=>*→]))/y;
   let match: RegExpExecArray | null;
   while (pattern.lastIndex < text.length && (match = pattern.exec(text)) !== null) {
     if (match[1] !== undefined) tokens.push({ type: "word", text: match[1] });
-    else tokens.push({ type: "symbol", text: match[2] === "→" ? ">" : match[2] });
+    else if (match[2] !== undefined) tokens.push({ type: "word", text: match[2] });
+    else tokens.push({ type: "symbol", text: match[3] === "→" ? ">" : match[3] });
   }
   if (text.slice(pattern.lastIndex).trim() !== "") {
     throw new Error("can't read “" + text.slice(pattern.lastIndex).trim() + "”");
@@ -151,25 +154,66 @@ function readInForce(reader: TokenReader): Expression {
 
 // --- Writing back (canonical form) ----------------------------------------------------
 
+// A key is written bare; anything else (a label not yet matched) in quotes.
+export function looksLikeKey(text: string): boolean {
+  return /^[a-z0-9_.:-]+$/.test(text);
+}
+
+function name(text: string): string {
+  return looksLikeKey(text) ? text : JSON.stringify(text);
+}
+
 export function expressionToText(expression: Expression): string {
   switch (expression.node) {
     case "reaches": {
-      const target = expression.target.by === "thing" ? expression.target.key : "any " + expression.target.kind;
+      const target = expression.target.by === "thing" ? name(expression.target.key) : "any " + expression.target.kind;
       const route = expression.via.map((step) => step.link + (step.repeat ? "*" : "")).join(" > ");
       return "reaches(" + target + ", " + route + (expression.when === "ever" ? ", ever" : "") + ")";
     }
     case "in_force": {
-      const roles = Object.entries(expression.roles).map(([role, key]) => ", " + role + " = " + key);
+      const roles = Object.entries(expression.roles).map(([role, key]) => ", " + role + " = " + name(key));
       return "in_force(" + expression.what + roles.join("") + ")";
     }
     case "named_scope":
-      return expression.key;
+      return name(expression.key);
     case "all":
     case "any":
       return expression.node + "(" + expression.of.map(expressionToText).join(", ") + ")";
     case "not":
       return "not(" + expressionToText(expression.of) + ")";
   }
+}
+
+// Every place in a condition that names a thing or a named scope, with a way to change it.
+// Used to match labels to keys on import.
+export interface ConditionRef {
+  kind: "thing" | "scope";
+  written: string;
+  set(key: string): void;
+}
+
+export function conditionRefs(expression: Expression): ConditionRef[] {
+  const refs: ConditionRef[] = [];
+  const visit = (e: Expression): void => {
+    if (e.node === "reaches" && e.target.by === "thing") {
+      const target = e.target;
+      refs.push({ kind: "thing", written: target.key, set: (key) => (target.key = key) });
+    }
+    if (e.node === "in_force") {
+      for (const role of Object.keys(e.roles)) {
+        const roles = e.roles;
+        refs.push({ kind: "thing", written: roles[role], set: (key) => (roles[role] = key) });
+      }
+    }
+    if (e.node === "named_scope") {
+      const scope = e;
+      refs.push({ kind: "scope", written: scope.key, set: (key) => (scope.key = key) });
+    }
+    if (e.node === "all" || e.node === "any") e.of.forEach(visit);
+    if (e.node === "not") visit(e.of);
+  };
+  visit(expression);
+  return refs;
 }
 
 // Every thing key a condition refers to (for "missing reference" checks).

@@ -1,0 +1,6 @@
+{
+  "_comment": "Each test world is a set of files, imported in this order. Used by the tests and by the app's Import screen.",
+  "E1": ["wfb6-base.yaml", "e1-rules.yaml", "e1-campaign-rules.yaml", "e1-world.yaml", "e1-log.yaml"],
+  "E2": ["wfb6-base.yaml", "e2-rules.yaml", "e2-world.yaml"],
+  "E4": ["wfb6-base.yaml", "e4-rules.yaml", "e4-world.yaml"]
+}

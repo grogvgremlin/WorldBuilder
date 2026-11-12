@@ -1,0 +1,24 @@
+# E1 rules (design/test-corpus-v2.md E1): a library package, world-agnostic.
+# Its rules name things by key (nuln, gunnery_school); each sandbox reads them in its own world.
+
+package: [E1 rules, e1_rules]
+edition: wfb6
+layer: book
+requires: [wfb6_base]
+
+scopes:
+  - scope: [commissioned by the treasury, commissioned_by_the_treasury]
+    query: reaches(wissenland_treasury, serves > paid_by)
+
+rules:
+  - rule: [Nuln civic pride, nuln_civic_pride]
+    effect: [Ld, +1]
+    scope: reaches(nuln, raised_at > in*)
+    nature: origin
+    category: place
+
+  - rule: [Gunnery School, gunnery_school_pride]
+    effect: [Ld, =8, inline]
+    scope: reaches(gunnery_school, member_of)
+    nature: origin
+    category: organisation

@@ -1,0 +1,19 @@
+# E2 rules (design/test-corpus-v2.md E2): both origin, both category place, same source layer.
+# Nearer applies later: Wissenland (depth 1) then Nuln (depth 0) -> 8.
+
+package: [E2 rules, e2_rules]
+edition: wfb6
+layer: book
+
+rules:
+  - rule: [Wissenland discipline, wissenland_discipline]
+    effect: [Ld, =7, inline]
+    scope: reaches(wissenland, raised_at > in*)
+    nature: origin
+    category: place
+
+  - rule: [Nuln civic pride, nuln_civic_pride_e2]
+    effect: [Ld, +1]
+    scope: reaches(nuln, raised_at > in*)
+    nature: origin
+    category: place

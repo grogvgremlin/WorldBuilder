@@ -9,25 +9,30 @@ function copyOf<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function contentId(item: ContentItem): string {
+  return item.space + "|" + item.key;
+}
+
 export class MemoryStore implements Store {
-  private entries: LogEnvelope[] = [];
+  private logs = new Map<string, LogEnvelope[]>();
   private content = new Map<string, ContentItem>();
   private drafts = new Map<string, DraftBatch>();
   private meta: Meta = {};
 
-  async appendEntry(entry: LogEnvelope): Promise<void> {
-    if (this.entries.some((existing) => existing.id === entry.id)) {
-      throw new Error("Log entry already exists: " + entry.id);
+  async appendEntry(sandbox: string, entry: LogEnvelope): Promise<void> {
+    for (const log of this.logs.values()) {
+      if (log.some((existing) => existing.id === entry.id)) throw new Error("Log entry already exists: " + entry.id);
     }
-    this.entries.push(copyOf(entry));
+    if (!this.logs.has(sandbox)) this.logs.set(sandbox, []);
+    this.logs.get(sandbox)!.push(copyOf(entry));
   }
 
-  async listEntries(): Promise<LogEnvelope[]> {
-    return copyOf(this.entries);
+  async listEntries(sandbox: string): Promise<LogEnvelope[]> {
+    return copyOf(this.logs.get(sandbox) ?? []);
   }
 
   async putContent(items: ContentItem[]): Promise<void> {
-    for (const item of items) this.content.set(item.key, copyOf(item));
+    for (const item of items) this.content.set(contentId(item), copyOf(item));
   }
 
   async listContent(): Promise<ContentItem[]> {
@@ -55,12 +60,14 @@ export class MemoryStore implements Store {
   }
 
   async exportCopy(exportedTime: string): Promise<WholeCopy> {
+    const logs: Record<string, LogEnvelope[]> = {};
+    for (const [sandbox, entries] of this.logs) logs[sandbox] = copyOf(entries);
     return {
       format: "worldbuilder-copy",
-      version: 1,
+      version: 2,
       exportedTime,
       meta: await this.getMeta(),
-      entries: await this.listEntries(),
+      logs,
       content: await this.listContent(),
       drafts: await this.listDrafts(),
     };
@@ -69,13 +76,15 @@ export class MemoryStore implements Store {
   async replaceWithCopy(copy: WholeCopy): Promise<void> {
     await this.wipe();
     this.meta = copyOf(copy.meta);
-    for (const entry of copy.entries) await this.appendEntry(entry);
+    for (const [sandbox, entries] of Object.entries(copy.logs)) {
+      for (const entry of entries) await this.appendEntry(sandbox, entry);
+    }
     await this.putContent(copy.content);
     for (const draft of copy.drafts) await this.putDraft(draft);
   }
 
   async wipe(): Promise<void> {
-    this.entries = [];
+    this.logs.clear();
     this.content.clear();
     this.drafts.clear();
     this.meta = {};

@@ -1,64 +1,50 @@
-// Exported text re-imports exactly. Design: design/text-format-and-csv.md §1, §6.
+// Exported text re-imports exactly. Design: design/text-format-and-csv.md §1, §6;
+// build/slice-1-brief.md §2.1 (package files and sandbox files).
 
 import { describe, expect, it } from "vitest";
 import { MemoryStore } from "../../src/store/memory-store";
-import { itemToText, packageToText, ruleToText } from "../../src/import/export-text";
+import { containerToText, itemToText, ruleToText, type Container } from "../../src/import/export-text";
 import { readBackRule } from "../../src/import/read-back";
 import type { ContentItem, Package, Rule } from "../../src/schema";
-import { importToDraft, loadFixture, testDeps } from "../helpers";
+import { importToDraft, loadFixture, loadSet, testDeps } from "../helpers";
 
-const fixtures = [
-  ["e1-handgunners.yaml", "e1_handgunners"],
-  ["e2-depth.yaml", "e2_depth"],
-  ["e4-grenzstadt.yaml", "e4_grenzstadt"],
-];
+const sets = ["E1", "E2", "E4"];
 
-function byKey(items: ContentItem[]) {
-  return [...items].sort((a, b) => a.key.localeCompare(b.key));
+function sorted(items: ContentItem[]) {
+  return [...items].sort((a, b) => (a.space + a.key).localeCompare(b.space + b.key));
 }
 
-describe.each(fixtures)("export text (%s)", (fixture, packageKey) => {
-  it("re-imports a whole package as unchanged, and rebuilds the same content elsewhere", async () => {
-    const store = new MemoryStore();
-    await loadFixture(store, testDeps(), fixture);
-    const content = await store.listContent();
-    const pkg = content.find((i) => i.key === packageKey) as Package;
-    const text = packageToText(pkg, content);
+function containers(content: ContentItem[]): Container[] {
+  return content.filter((i): i is Container => i.class === "package" || i.class === "sandbox");
+}
 
-    const again = await importToDraft(store, testDeps(), text);
-    expect(again.problems).toEqual([]);
-    expect(again.content.every((c) => c.status === "unchanged")).toBe(true);
-    expect(again.rewrittenText).toBe(text); // nothing to write back: every key is there
+describe.each(sets)("export text (%s)", (set) => {
+  it("re-imports every package and sandbox as unchanged, and rebuilds the same content elsewhere", async () => {
+    const store = new MemoryStore();
+    await loadSet(store, testDeps(), set);
+    const content = await store.listContent();
+    // Packages first, so a fresh store has them before the sandboxes that switch them on.
+    const all = containers(content).sort((a, b) => (a.class === b.class ? 0 : a.class === "package" ? -1 : 1));
 
     const fresh = new MemoryStore();
-    await loadFixture(fresh, testDeps(), "export", text);
-    expect(byKey(await fresh.listContent())).toEqual(byKey(content));
-  });
-
-  it("re-imports each rule on its own as unchanged, without touching the rest of the package", async () => {
-    const store = new MemoryStore();
-    await loadFixture(store, testDeps(), fixture);
-    const content = await store.listContent();
-    const pkg = content.find((i) => i.key === packageKey) as Package;
-    for (const rule of content.filter((i): i is Rule => i.class === "rule")) {
-      const draft = await importToDraft(store, testDeps(), ruleToText(rule, pkg));
-      expect(draft.problems).toEqual([]);
-      expect(draft.content.map((c) => [c.item.key, c.status])).toEqual([
-        [packageKey, "unchanged"],
-        [rule.key, "unchanged"],
-      ]);
+    for (const container of all) {
+      const text = containerToText(container, content);
+      const again = await importToDraft(store, testDeps(), text);
+      expect(again.problems, container.key).toEqual([]);
+      expect(again.content.filter((c) => c.status !== "unchanged").map((c) => c.item.key), container.key).toEqual([]);
+      expect(again.rewrittenText, container.key).toBe(text); // nothing to write back: every key is there
+      await loadFixture(fresh, testDeps(), container.key, text);
     }
+    expect(sorted(await fresh.listContent())).toEqual(sorted(content));
   });
-});
 
-describe.each(fixtures)("any item's text (%s)", (fixture, packageKey) => {
   it("re-imports every item on its own as unchanged", async () => {
     const store = new MemoryStore();
-    await loadFixture(store, testDeps(), fixture);
+    await loadSet(store, testDeps(), set);
     const content = await store.listContent();
-    const pkg = content.find((i) => i.key === packageKey) as Package;
     for (const item of content) {
-      const draft = await importToDraft(store, testDeps(), itemToText(item, pkg, content));
+      const container = containers(content).find((c) => c.key === item.package && c.space === item.space);
+      const draft = await importToDraft(store, testDeps(), itemToText(item, container, content));
       expect(draft.problems, item.key).toEqual([]);
       expect(draft.content.filter((c) => c.status !== "unchanged").map((c) => c.item.key), item.key).toEqual([]);
     }
@@ -68,8 +54,8 @@ describe.each(fixtures)("any item's text (%s)", (fixture, packageKey) => {
 describe("read-back", () => {
   it("says what each E1 rule does in words", async () => {
     const store = new MemoryStore();
-    await loadFixture(store, testDeps(), "e1-handgunners.yaml");
-    const content = await store.listContent();
+    await loadSet(store, testDeps(), "E1");
+    const content = (await store.listContent()).filter((i) => i.space === "library" || i.space === "e1");
     const labelOf = (key: string) => content.find((i) => i.key === key)?.label ?? key;
     const rule = (key: string) => readBackRule(content.find((i) => i.key === key) as Rule, labelOf);
     expect(rule("nuln_civic_pride").slice(0, 3)).toEqual([
@@ -83,7 +69,7 @@ describe("read-back", () => {
       "Applies to units that are in the named scope “commissioned by the treasury”.",
       "Only while wages withheld is in force (withholder: Wissenland treasury).",
       "Environment rule: reads the world at the date you're viewing, in the stationed step.",
-      "Category title · book layer.",
+      "Category title · campaign layer.",
     ]);
   });
 });
@@ -91,13 +77,15 @@ describe("read-back", () => {
 describe("rule text", () => {
   it("reads like the guide", async () => {
     const store = new MemoryStore();
-    await loadFixture(store, testDeps(), "e1-handgunners.yaml");
+    await loadSet(store, testDeps(), "E1");
     const content = await store.listContent();
     const rule = content.find((i) => i.key === "unpaid_wages") as Rule;
-    expect(ruleToText(rule, content.find((i) => i.key === "e1_handgunners") as Package)).toBe(
+    expect(ruleToText(rule, content.find((i) => i.key === "wissenland_campaign_rules") as Package)).toBe(
       [
-        "package: [E1 Handgunners' Ld, e1_handgunners]",
-        "layer: book",
+        "package: [Wissenland campaign rules, wissenland_campaign_rules]",
+        "edition: wfb6",
+        "layer: campaign",
+        "requires: [e1_rules]",
         "",
         "rules:",
         "  - rule: [Unpaid wages, unpaid_wages]",
@@ -106,7 +94,7 @@ describe("rule text", () => {
         "    trigger: in_force(wages_withheld, withholder = wissenland_treasury)",
         "    nature: environment",
         "    category: title",
-        "    layer: book",
+        "    layer: campaign",
         "",
       ].join("\n"),
     );

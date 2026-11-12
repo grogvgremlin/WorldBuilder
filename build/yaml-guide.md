@@ -1,33 +1,27 @@
 # Writing world text: a guide
 
-How to write the YAML the app imports in slice 0: every section, every field, what each value means, and examples to try with their expected results.
+How to write the YAML the app imports: the two kinds of file, every section and field, what each value means, and examples to try with their expected results.
 
 The examples marked **try** are checked by a test (`test/cases/guide-examples.test.ts`), so they match what the app does.
 
-This is the slice-0 proposal (`build/build-log.md`, "The text shape"). It may change once design has reviewed it.
+The format is a proposal (`build/build-log.md`, "The text shape"); it may change once design has reviewed it. Slice 1 changed it: world content and rules now go in **different files**.
 
 ---
 
-## 1. The shape of a file
+## 1. Two kinds of file
 
-One file is one **package**. It is YAML, so indentation matters (use spaces, never tabs) and `#` starts a comment.
+Where something lives decides which file it goes in (slice 1 brief §2.1):
 
-```yaml
-package: [My house rules, my_house_rules]   # (label, key)
-layer: house                                # book | faq | house | campaign
+| File starts with | It is | Holds | Deploys to |
+|---|---|---|---|
+| `package: [label, key]` | a **library package** | rules, named scopes, a manifest | the **library**: usable by any sandbox that switches it on |
+| `sandbox: [label, key]` | a **sandbox** (one world) | its contexts, things, links, units, events, and log entries | that sandbox |
 
-things:  [...]     # places, polities, organisations, titles ...
-links:   [...]     # dated links between things
-units:   [...]     # protagonists: profile, raising date, their links
-scopes:  [...]     # named scopes: saved queries
-rules:   [...]     # scope + trigger rules
-events:  [...]     # world history (stored as content)
-log:     [...]     # events appended to the log when you deploy
-```
+- **A package is not a scope.** A rule is in play for a unit only if its package is **switched on in the unit's context**; then the rule's scope decides which units it lands on.
+- **A library package is world-agnostic.** Its rules name things by key (`nuln`); each sandbox reads them in its own world, so two sandboxes can each have their own Nuln.
+- Putting world content in a package file (or rules in a sandbox file) is reported on that line and left out.
 
-Every section is optional, in any order. A file can refer to things in another package that's already deployed: refer to them by key.
-
-**Importing never blocks.** A line with a problem is reported (with its line number) and left out; everything else still imports. You review the draft, then **Deploy** or **Discard**.
+YAML basics: indentation matters (spaces, never tabs) and `#` starts a comment. **Importing never blocks**: a line with a problem is reported with its line number and left out; everything else still imports. You review the draft, then **Deploy** or **Discard**.
 
 ---
 
@@ -35,94 +29,128 @@ Every section is optional, in any order. A file can refer to things in another p
 
 Every item has a **label** (what you read) and a **key** (what other lines refer to: lower case, underscores, no spaces).
 
+**In headers** (the line that names a new item):
+
 | You write | What happens |
 |---|---|
 | `[Nuln, nuln]` | label Nuln, key `nuln` |
-| `Nuln` | the label is matched against deployed items of the same sort. One match: its key is used. No match: a new key `nuln` is made from the label |
-| `[Nuln, ~, [settlement]]` | `~` means "no key yet" in a tuple with more fields after it (an empty slot isn't valid YAML) |
+| `Nuln` | the label is matched against deployed items of the same sort in the same place (the library, or this sandbox). One match: its key. No match: a new key `nuln` |
+| `[Nuln, ~, [settlement]]` | `~` means "no key yet" in a tuple with more fields after it |
 
-After import, the review shows **"Text with keys written back"**. Keep that version: re-importing it edits the same items instead of making new ones.
+**In references** (a link end, a condition target, a role, a context's packages): write the **key**, or the **label**.
+- A label is matched the same way: one match takes its key; several matches are reported ("write the key"); none is a missing reference.
+- In conditions, a label with spaces goes in quotes: `reaches("Gunnery School", member_of)`.
+- A sandbox file matches against its own world. A package file matches against things in any sandbox.
+- A key-like name in a package rule (`nuln`) that no sandbox has yet is accepted quietly: the sandbox may come later.
 
-**Re-importing** an item with the same key is an **edit** (or **unchanged** if nothing differs). That is how you change something in slice 0.
+After import, the review shows **"Text with keys written back"**, with every label replaced by its key. Keep that version: re-importing it edits the same items.
 
-**Getting the text, and the keys, of anything already deployed:** on the **World** tab, tap any unit, thing, rule, named scope, event or package. The key is shown under its name. **View text** shows it written in this format, with **Copy**, **Export** and **Export package**. Edit the text and import it to change the item. A file can hold just part of a package: the package's other items stay as they are.
+**Re-importing** an item with the same key is an **edit** (or **unchanged**). A file may hold just part of a package or sandbox: the rest stays as it is.
+
+**Getting the text, and the keys, of anything deployed:** tap it on the **World** or **Library** tab. The key is shown under its name, and **View text** shows it written in this format, with **Copy**, **Export** and **Export package**.
 
 ---
 
-## 3. Package header
+## 3. Library package files
 
 ```yaml
-package: [E1 Handgunners' Ld, e1_handgunners]
-layer: book
+package: [E1 rules, e1_rules]   # (label, key)
+edition: wfb6                   # the manifest it belongs to
+layer: book                     # book | faq | house | campaign (default book)
+requires: [wfb6_base]           # optional; a warning if one is off where this is on
+conflicts: []                   # optional; a warning if both are on
+
+scopes:   [...]                 # named scopes (§6)
+rules:    [...]                 # rules (§5)
 ```
 
-- `package`: (label, key). If you leave it out, the file name is used.
-- `layer`: the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order (`rules-overlay.md` §8). The default is `book`. A rule can override it with its own `layer:`.
+- `layer` is the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order. A rule can override it with its own `layer:`.
+
+### A manifest
+
+A package can define the **manifest** for an edition: the statline and the default orders. They're content, not code, so a context can override them (§4).
+
+```yaml
+package: [WFB 6th edition base package, wfb6_base]
+manifest: [Warhammer Fantasy Battles 6th edition, wfb6]
+stats: [M, WS, BS, S, T, W, I, A, Ld]          # the model statline, in card order
+category_order:                                # the run order of rule categories, per step
+  origin: [place, organisation, title]
+  stationed: [place, organisation, title]
+bag_order: [set, add, multiply, cap, floor]    # the order of kinds when nothing else decides
+```
+
+Categories on the same rank go in a list: `origin: [place, [organisation, title]]`.
 
 ---
 
-## 4. Things
+## 4. Sandbox files
+
+```yaml
+sandbox: [E1 Nuln, e1]
+
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6                                       # which manifest
+    packages: [wfb6_base, e1_rules, wissenland_campaign_rules]   # switched on, in order
+
+things:  [...]      # §4.1
+links:   [...]      # §4.2
+units:   [...]      # §4.3
+events:  [...]      # world history (§7)
+log:     [...]      # entries appended to this sandbox's log on deploy (§7)
+```
+
+- A **context** is one game system's part of the sandbox. Its `packages` are the library packages switched on in it, in order. The GM can switch one off or on later on the **Library** tab (a dated entry in the log, which can be withdrawn).
+- The GM can also change the context's **category order** and **pin** one rule before another on a unit card. Both are dated log entries.
+
+### 4.1 Things
 
 ```yaml
 things:
   - [Nuln, nuln, [settlement, polity]]      # (label, key, kinds)
-  - [Gunnery School, gunnery_school, [organisation]]
-  - [Elector of Averland, elector_of_averland, title]   # one kind can be a plain word
+  - [Gunnery School, gunnery_school, organisation]
 ```
 
-- **Kinds** are free words. Several per thing are fine (Nuln is a settlement and a polity).
-- Kinds matter in two places: `reaches(any title, …)` matches things by kind, and a unit always has the kind `unit`.
-- Attributes on things have no text form yet.
+Kinds are free words; several per thing are fine. They group things on the World tab, and `reaches(any title, …)` matches by kind.
 
----
-
-## 5. Links
+### 4.2 Links
 
 ```yaml
 links:
   - [nuln, in, wissenland, 2000]                     # (from, kind, to, start)
   - [grenzstadt, in, averland, 2400, 2523]           # (from, kind, to, start, end)
-  - [handgunner_commission, paid_by, wissenland_treasury, 2519]
+  - [Gunnery School, in, Nuln, 2400]                 # labels work too
 ```
 
-- **from, to**: keys of things or units.
-- **kind**: a free word, written with underscores (`raised_at`, `member_of`). Nothing is built in: a link kind means whatever your conditions follow.
-- **start / end**: plain years (or day counts). **Start counts, end doesn't**: `2400, 2523` is on in 2522 and off in 2523. No end means "still on".
-- A link's key is the tuple itself (`grenzstadt~in~averland~2400`). To end a link later, re-import it with the same from, kind, to and start, plus an end: that's an edit.
+- **kind**: a free word with underscores (`raised_at`, `member_of`). It means whatever your conditions follow.
+- **start / end**: plain years. **Start counts, end doesn't**: `2400, 2523` is on in 2522, off in 2523. No end: still on.
+- A link's key is the tuple `from~kind~to~start`. To end a link later, re-import it with the same from, kind, to and start, plus an end.
 
-Link kinds used in the examples:
+| Kind used in the examples | From → to |
+|---|---|
+| `in` | place → bigger place |
+| `raised_at`, `stationed_at` | unit → place |
+| `member_of` | unit → organisation |
+| `serves` → `paid_by` | unit → commission → treasury |
+| `ruled_by` | place → title |
 
-| Kind | From → to | Read as |
-|---|---|---|
-| `in` | place → bigger place | containment |
-| `raised_at` | unit → place | where the unit was raised |
-| `stationed_at` | unit → place | where it is now |
-| `member_of` | unit → organisation | |
-| `serves` | unit → commission | |
-| `paid_by` | commission → treasury | |
-| `ruled_by` | place → title | |
-
----
-
-## 6. Units
+### 4.3 Units
 
 ```yaml
 units:
   - unit: [Nuln Handgunners, nuln_handgunners]
-    raised: 2520
-    profile: [3, 3, 3, 3, 3, 1, 3, 1, 7]
-    links:
-      - [raised_at, nuln]                    # (kind, to) — start = the raising date
-      - [stationed_at, nuln, 2520, 2526]     # (kind, to, start, end)
+    raised: 2520                             # required: origin rules read the world as of this date
+    context: wfb6                            # optional: default is the sandbox's first context
+    profile: [3, 3, 3, 3, 3, 1, 3, 1, 7]     # in the context's manifest stat order, or a map {Ld: 7}
+    links:                                   # links FROM this unit: (kind, to, start, end)
+      - [raised_at, nuln]                    # start defaults to `raised`
+      - [stationed_at, nuln, 2520, 2526]
 ```
-
-- **raised** (required): the raising date. **Origin** rules read the world as of this date.
-- **profile** (required): either a list in the order `M WS BS S T W I A Ld` (write `-` for a stat that doesn't apply), or a map: `profile: {Ld: 7, S: 3}`.
-- **links**: links *from* this unit, written without the "from". Start defaults to the raising date.
 
 ---
 
-## 7. Rules
+## 5. Rules
 
 ```yaml
 rules:
@@ -137,18 +165,16 @@ rules:
 | Field | Required | Meaning |
 |---|---|---|
 | `rule` | yes | (label, key) |
-| `effect` | yes | (stat, edit, target point): see §8 |
-| `scope` | yes | **which units**: a condition, see §9 |
+| `effect` | yes | (stat, edit, target point): see below |
+| `scope` | yes | **which units**: a condition (§6) |
 | `trigger` | no | **when it's on**: a condition. No trigger = on whenever the scope matches |
 | `nature` | yes | `origin`: read **as of the unit's raising**, in the origin step. `environment`: read **at the date you're viewing**, in the stationed step |
-| `category` | no (warned) | runs the order within a step: `place` first, then `organisation` and `title` together. Anything else, or none, runs last |
+| `category` | no (warned) | where it runs in the step's category order (`place`, `organisation`, `title` by default). Others run last |
 | `layer` | no | overrides the package's source layer |
 
-**How the order is decided** (`rules-overlay.md` §8): target point (statline → in-line → end), then step (origin → stationed), then source layer, then category, then **depth** (on one chain, the nearer thing applies later: Nuln after Wissenland), and otherwise a **bag** (set → add → multiply → cap → floor). A bag that changes the result when swapped raises a **clash notice**.
+**How the order is decided** (`rules-overlay.md` §8): target point (statline → in-line → end), then step (origin → stationed), then source layer, then category (the context's order), then **depth** (on one chain, the nearer thing applies later), and otherwise the **bag** (the manifest's bag order). A **pin** set by the GM overrides all of that for one pair. A bag that changes the result when swapped raises a **clash notice**. The derivation says what decided each step, and what reversing it would give.
 
----
-
-## 8. Edits: the `effect` tuple
+### Edits: the `effect` tuple
 
 | Write | Means | Default target point |
 |---|---|---|
@@ -161,51 +187,32 @@ rules:
 | `[WS, at most 2]` | cap | end |
 | `[S, at least 2]` | floor | end |
 
-Target points: `statline`, `inline` (or `in-line`), `end`.
-
-**YAML traps:**
-- Don't write `*2` for multiply: in YAML `*` starts an alias. Use `x2`.
-- Don't write `@end` bare: YAML reserves `@`. Write `end` (or quote it: `"@end"`).
+**YAML traps:** don't write `*2` for multiply (YAML reads `*` as an alias): use `x2`. Don't start a value with `@`: write `end`, not `@end`.
 
 ---
 
-## 9. Conditions: scopes, triggers and named scopes
+## 6. Conditions: scopes, triggers and named scopes
 
 A condition reads the world. Write it on one line after `scope:`, `trigger:` or `query:`.
 
-### reaches: does the unit get to a thing by following links?
+**reaches: does the unit get to a thing by following links?**
 
 ```
 reaches(nuln, raised_at > in*)
+reaches("Gunnery School", member_of)
+reaches(any title, serves > under*)
+reaches(siege_of_nuln, participated_in, ever)
 ```
 
-- First: the **target**, a key (`nuln`), or `any <kind>` (`any title`).
-- Then the **route**: link kinds separated by `>`. A `*` after a kind means "any number of times, including none".
-  - `raised_at > in*`: the place it was raised at, or anything that place is in, however far up. Raised at Nuln → reaches Nuln and Wissenland.
-  - `member_of`: just one hop.
-  - `serves > paid_by`: exactly two hops.
-- Optionally `, ever`: any link that had started by the date, even if it has ended since. Without it, only links on **at** the date count.
-- The walk starts at the unit and needs at least one hop.
+- The **target**: a key, a label in quotes, or `any <kind>`.
+- The **route**: link kinds separated by `>`. `*` after a kind means "any number of times, including none". `raised_at > in*`: the place it was raised at, or anything that place is in.
+- `, ever`: any link that had started by the date, even if it has ended since.
 
-### in_force: is an event on at the date?
+**in_force: is an event on at the date?** `in_force(wages_withheld, withholder = wissenland_treasury)`: an event kind or key, then any number of `role = thing`.
 
-```
-in_force(wages_withheld, withholder = wissenland_treasury)
-```
+**Combining:** `all(…)`, `any(…)`, `not(…)`.
 
-- First: an event **kind** or an event **key**.
-- Then any number of `role = thing key`. The event must have each one.
-
-### Combining
-
-```
-all(reaches(nuln, raised_at > in*), not(reaches(steady, holds)))
-any(reaches(nuln, stationed_at), reaches(altdorf, stationed_at))
-```
-
-### Named scopes
-
-A bare key in a condition refers to a **named scope**: a saved query.
+**Named scopes:** a bare key refers to a saved query.
 
 ```yaml
 scopes:
@@ -213,41 +220,40 @@ scopes:
     query: reaches(wissenland_treasury, serves > paid_by)
 ```
 
-**Which date is read?** A rule's `nature`. Origin: the unit's raising date. Environment: the date on the card.
+**Which date is read?** The rule's `nature`: origin reads the unit's raising date, environment the date on the card.
 
 ---
 
-## 10. Events and the log
+## 7. Events and the log
 
 ```yaml
-events:                       # world history
+events:                       # in a sandbox file: world history
   - event: [Spinach grows in Averland, averland_spinach]
     kind: spinach_harvest
     roles: {where: averland}
     period: [2400, 2524]      # (start, end); end optional
 
-log:                          # appended to the log as event entries on deploy
+log:                          # in a sandbox file: appended to its log on deploy
   - event: [Wages withheld, wages_withheld_2524]
     kind: wages_withheld
     roles: {withholder: wissenland_treasury}
     period: [2524]
 ```
 
-- Same shape in both. `events:` are part of the world's content. `log:` entries can be **withdrawn** later (Log tab, or the unit card); the original stays in the audit view.
-- An event in `log:` whose key is already logged isn't added twice.
-- You can also add log events by hand on the **Log** tab.
+A sandbox file can hold only a `log:` section (with the sandbox's header) to add entries. Log entries can be **withdrawn** later; the original stays in the audit view. An event already logged (same key) isn't added twice.
 
 ---
 
-## 11. Try it
+## 8. Try it
 
-Each block is a whole file: paste it on **Import**, check the review, **Deploy**, then open the unit.
+Paste each block on **Import**, check the review, **Deploy**, then open the unit. Load the **E1** test world first where it says so.
 
 ### try-1: a house rule for the garrison
-Needs **e1-handgunners** deployed first.
+Needs E1. First the rule, in a package of its own:
 
 ```yaml try-1
 package: [Garrison pride, garrison_pride]
+edition: wfb6
 layer: house
 
 rules:
@@ -258,39 +264,40 @@ rules:
     category: place
 ```
 
-**Expect:** Nuln Handgunners, 2525: **Ld 8**. Origin 7 → 8 → 8; stationed: unpaid wages (book) −1 → 7, then garrison pride (house) +1 → **8**. The garrison step says "house runs after book": the source layer decided it.
+Then switch it on in E1's context: on the **Library** tab, tap **Switch on** next to Garrison pride. Or re-import the context with the package added:
+
+```yaml try-1b
+sandbox: [E1 Nuln, e1]
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6
+    packages: [wfb6_base, e1_rules, wissenland_campaign_rules, garrison_pride]
+```
+
+**Expect:** Nuln Handgunners, 2525: **Ld 8**. Origin 7 → 8 → 8. Stationed: garrison pride (house) +1 → 9, then unpaid wages (campaign) −1 → **8**: "campaign runs after house", the source layer decided it.
 
 ### try-2: the Handgunners move to Altdorf in 2526
-Needs e1-handgunners and try-1.
+Needs E1 and try-1. Written with labels, to show them being matched:
 
 ```yaml try-2
-package: [Handgunners move, handgunners_move]
+sandbox: [E1 Nuln, e1]
 
 things:
   - [Altdorf, altdorf, [settlement]]
 
 links:
-  - [nuln_handgunners, stationed_at, nuln, 2520, 2526]
-  - [nuln_handgunners, stationed_at, altdorf, 2526]
+  - [Nuln Handgunners, stationed_at, Nuln, 2520, 2526]
+  - [Nuln Handgunners, stationed_at, Altdorf, 2526]
 ```
 
-**Expect:** the review shows the Nuln stationing as an **edit** (same from, kind, to and start as in E1, now with an end), and Altdorf and the new stationing as **new**. Read 2525: **Ld 8**. Read 2526: **Ld 7**: garrison pride now shows "scope not matched" (no route to Nuln by `stationed_at` in 2526).
+**Expect:** the review shows the Nuln stationing as an **edit** (same link, now with an end) and Altdorf and the new stationing as **new**. "Text with keys written back" shows `[nuln_handgunners, stationed_at, nuln, 2520, 2526]`. Read 2525: **Ld 8**. Read 2526: **Ld 7**: garrison pride now shows "scope not matched".
 
 ### try-3: a clash
-On its own, no other world needed.
+On its own. Two files: the rules, then a small world that switches them on.
 
 ```yaml try-3
-package: [Clash, clash]
-
-things:
-  - [Middenheim, middenheim, [settlement]]
-
-units:
-  - unit: [Middenheim Swordsmen, middenheim_swordsmen]
-    raised: 2510
-    profile: {S: 3}
-    links:
-      - [raised_at, middenheim]
+package: [Middenheim rules, middenheim_rules]
+edition: wfb6
 
 rules:
   - rule: [Ulric's blessing, ulrics_blessing]
@@ -305,7 +312,26 @@ rules:
     category: place
 ```
 
-**Expect:** **S 8** (bag: add before multiply: (3 + 1) × 2) and a clash notice: "S 8 as ordered, 7 if reversed".
+```yaml try-3b
+sandbox: [Middenheim, middenheim_world]
+
+contexts:
+  - context: [WFB 6th, wfb6]
+    manifest: wfb6
+    packages: [middenheim_rules]
+
+things:
+  - [Middenheim, middenheim, [settlement]]
+
+units:
+  - unit: [Middenheim Swordsmen, middenheim_swordsmen]
+    raised: 2510
+    profile: {S: 3}
+    links:
+      - [raised_at, middenheim]
+```
+
+**Expect:** **S 8** (bag: add before multiply: (3 + 1) × 2) and a clash notice: "S 8 as ordered, 7 if reversed". The context names a manifest (`wfb6`) that isn't loaded unless E1 is: then the card warns and uses the built-in default orders.
 
 ### try-4: mistakes are reported, the rest imports
 On its own.
@@ -329,15 +355,15 @@ rules:
     category: place
   - rule: [Unknown place, unknown_place]
     effect: [Ld, +1]
-    scope: reaches(nowhere, raised_at)
+    scope: reaches("Nowhere at all", raised_at)
     nature: origin
     category: place
 ```
 
-**Expect:** Kemperbad and "Unknown place" import. Problems: line 8 "set needs a target point", line 14 "scope: the condition ends too early", line 17 "missing reference nowhere in scope" (a warning: it still imports; a unit reading it would get "can't tell").
+**Expect:** only "Unknown place" imports. Problems: line 3 "things is world content: it belongs in a sandbox file"; line 8 "set needs a target point"; line 14 "scope: the condition ends too early"; line 19 "missing reference Nowhere at all in scope" (a warning: it still imports).
 
 ---
 
-## 12. What has no text form yet
+## 9. What has no text form yet
 
-Thing attributes, switch-offs, ignore rules, hook objects, `value(…)`, bases, calendars and contingents. Their shapes exist in the schema; their behaviour comes in later slices.
+Thing attributes, switch-offs (E3), ignore rules, hook objects, `value(…)`, bases, calendars, contingents, and the army lists and rosters of slice 1 Part B (`build/army-data-request.md` sketches their shape).
