@@ -157,3 +157,13 @@ A photo or screenshot of the army list pages and the unit entries works too. Att
 ## What happens next
 
 The numbers go into `test/fixtures/` as the Empire army list, and become L1 and L2. The army list is a **library package**: one Empire list, usable from any sandbox or none (pick-up games). Anything that doesn't fit the format gets noted in the build log, not silently dropped.
+
+---
+
+## Addendum (design project, 12 Nov): races for case L3
+
+The brief now has case **L3** (racial deltas, brief §3.1 and §3.3), so Part B also needs:
+- the **Human** base profile (the plain trooper line the Empire book's units start from);
+- for L3(c), two Orc & Goblin lines only: **Orc Boyz** and **Black Orcs** (profile and points; nothing else from that book yet).
+
+Units are still entered **as printed**; the build works out each unit's delta from its race.
