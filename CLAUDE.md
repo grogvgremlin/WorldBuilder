@@ -1,6 +1,6 @@
 # CLAUDE.md — Warhammer army builder and world (build repo)
 
-_For Claude Code. Read this first, then the current slice brief (`build/slice-0-brief.md`)._
+_For Claude Code. Read this first, then the current slice brief (`build/slice-1-brief.md`; slice 0's is `build/slice-0-brief.md`)._
 
 ## What this is
 A personal, local-first app for Warhammer Fantasy armies, battles, campaigns and a shared world.
@@ -23,7 +23,7 @@ Your job is to **build slices against acceptance cases**, not to redesign.
 - **Storage**: IndexedDB behind one **storage seam** (`src/store/`). Nothing bypasses it. An in-memory implementation is used for tests.
 - **Schema defined once**: zod schemas in `src/schema/`, with **JSON Schema emitted to `schema/`** so the data can be read from Python on a laptop.
 - **Tests**: Vitest. **Build**: Vite. **Screens**: React, kept thin.
-- **No server, ever, for campaign data.** The data never leaves the device except by an export the user makes.
+- **No server yet.** In slices 0–1 the data never leaves the device except by an export the user makes. The design now has **one server the owner runs** (it reads the data; devices keep a full copy and work offline), built in a later slice — so keep sync transport-agnostic and the envelope's order number ready for it (slice 1 brief §1.5).
 
 ## Structural seams — real from day one, even when unused
 These are expensive to retrofit (design: `design/infra.md`).
@@ -54,4 +54,4 @@ These are expensive to retrofit (design: `design/infra.md`).
 - `schema/` — the emitted JSON Schema.
 
 ## Out of scope until a brief says otherwise
-Sync, real encryption, maps, rule and world editors, decks, multiple logins, and submissions. Their shapes exist in the schema; their behaviour does not.
+Sync, the server, real encryption, maps, rule and world editors, decks and dice. Their shapes exist in the schema; their behaviour does not. (Multiple logins and submissions come in with slice 1.)
