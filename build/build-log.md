@@ -180,3 +180,24 @@ Each is built the way described, so slice 0 runs. None changes E1, E2 or E4.
 7. **"While the Elector holds Grenzstadt" (E4).** §17 has no node for "does X rule Y now?" between two things other than the protagonist. Built as a trigger read through the unit: `reaches(elector_of_averland, raised_at > ruled_by)`. Is that the intended way to write it, or does §17 need a node for a link between two named things? (- user: don't understand. "does X rule Y now?" is a hook and we shoudl have that covered)
 8. **Entry status inside the seal.** `infra.md` §5.1 leaves only ID, recorded time, device and host sequence number outside the seal, so status sits inside. In slice 0 status is written once at append ("accepted") and "withdrawn" is derived from withdrawal entries. When the host arrives, how does an entry move from awaiting host to accepted without an edit in place: an acceptance entry, or the host sequence number (outside the seal) itself standing for "accepted"? (user: need a tangible example)
 9. **Read date before the raising date.** ~~Should the card say "not yet raised"?~~ **Owner decision (10 Nov):** yes. Read before its raising date, a unit reads nothing from the world: the card says "Not raised until 2520" and shows the printed profile, greyed, with no rules (`UnitResolution.notYetRaised`; tested in E1). To carry back to the design project.
+
+**Still open:** 1 and 4 have no answer yet.
+
+### Examples asked for (12 Nov)
+
+**6. Named scopes and depth.** Two origin rules, both category place, on Handgunners raised at Nuln (Nuln is *in* Wissenland):
+- Nuln civic pride `Ld +1`, scope `reaches(nuln, raised_at > in*)`: Nuln is 0 hops up the unit's chain.
+- Wissenland discipline `Ld = 7 @inline`, scope written **directly** as `reaches(wissenland, raised_at > in*)`: Wissenland is 1 hop up. Depth decides: Wissenland first, Nuln later → **8**. This is E2.
+- Now write Wissenland discipline's scope as a **named scope** "raised in Wissenland" whose query is that same `reaches(…)`. Built as: a named scope names no thing, so it has no depth. The pair falls to the bag (set before add) → still 8 here, **with a clash notice** ("8 as ordered, 7 if reversed").
+- The question: should a named scope that is a single `reaches` to one thing carry that thing's depth, so it orders the same as writing it directly?
+
+**7. "While the Elector holds Grenzstadt".** Agreed, it's a hook: "the Elector of Averland rules Grenzstadt". The question is what the hook's **condition** is written with. §17 gives three nodes: `reaches` (starts from the unit), `value(…)` and `in force(…)`. "The Elector rules Grenzstadt" is a link between two named things, and neither is the unit. Ways to write it:
+- **(a) Through the unit**, as built: `reaches(elector_of_averland, raised_at > ruled_by)`. It works only because these units were raised at Grenzstadt; a unit raised elsewhere can't use the same hook.
+- **(b) As an event in force:** model the holding as a period that holds the link (`world-structure.md` §7: a reign holds a link package), then `in force(elector_rules_grenzstadt)`.
+- **(c) A new node** that tests a link between two named things at the date, e.g. `linked(grenzstadt, ruled_by, elector_of_averland)`.
+- Which is intended?
+
+**8. Entry status inside the seal.** Bea, a player, is offline. She buys a sword: her device appends an entry, status **awaiting host**, inside the seal. Next day she syncs; the GM's device (the host) accepts it. Where is "accepted" recorded, given nothing is edited in place and status is inside the seal?
+- **(a) An acceptance entry:** the host appends a new entry, "accepted Bea's entry X", with its own host sequence number. Bea's entry is never touched; its status is worked out from the entries that follow, as withdrawal is now.
+- **(b) The host sequence number:** the host stamps a number on Bea's entry's **envelope** (outside the seal, so no unsealing needed). Having a number means accepted. The sealed part is untouched, but the envelope is changed in place.
+- Which is intended?
