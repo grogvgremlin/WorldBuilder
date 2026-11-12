@@ -120,7 +120,7 @@ Draws and allocation, inventory, split / merge / transform, contingents, locks, 
 
 - **L3 — racial deltas.** Fixture races: Human (Empire), Orc, Black Orc *extends* Orc, each with the rank axis. (a) Handgunners entered as printed: the derivation reads race base Human → unit delta (0 where printed = base) → Ld 7. (b) The Handgunner champion (Marksman) reads Human → **champion tier step** (+1 BS) → the printed champion line. (c) A homebrew package "Brutal Orcs: S +1 to race Orc", switched on in a context: Orc Boyz and Black Orcs both S 4 → 5, with the derivation step "race Orc, homebrew"; a selector narrowed to "Orc only" leaves Black Orcs at 4. (d) Switched off, everything is back as printed.
 
-_L1–L3 are new cases written for this brief from §1.3 and `races-and-units.md` §2._ _(L1 and L2 as above.)_ **Fixture armies** (owner, 12 Nov): **WFB 6th edition Empire** by default; where a case needs a second player in the same manifest, **WFB 6th edition Orcs & Goblins**; a case written for another game uses that game. Keep the fixture lists small (a handful of units each); points and profiles as printed in the books._
+_L1–L3 are new cases written for this brief from §1.3 and `races-and-units.md` §2. **Fixture armies** (owner, 12 Nov): **WFB 6th edition Empire** by default; where a case needs a second player in the same manifest, **WFB 6th edition Orcs & Goblins**; a case written for another game uses that game. Keep the fixture lists small (a handful of units each); points and profiles as printed in the books._
 
 ---
 
