@@ -11,7 +11,7 @@ Built in parts, in the brief's order (§0). **Part A is done; the build stopped 
 | Part | State |
 |---|---|
 | **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container and orders read from the manifest. **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
-| **B** Army list and roster builder | Waiting on army data |
+| **B** Army list and roster builder | Waiting on army data. **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
 
 ### What Part A built
