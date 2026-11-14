@@ -8,11 +8,12 @@
 // (world views desktop-first: two columns on a wide screen).
 
 import { useEffect, useState } from "react";
-import type { ContentItem, EventRecord, Rule, Thing } from "../../schema";
+import type { ContentItem, EventRecord, Link, Rule, Thing } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import type { ReadEntry } from "../../log/log";
 import type { HookState } from "../../overlay/hooks";
 import { expressionToText } from "../../import/expression-text";
+import { RuleText } from "../components/RuleText";
 import { EventForm } from "../components/EventForm";
 import { latestDate, ReadDate } from "../components/ReadDate";
 import { Trace } from "../components/Trace";
@@ -63,6 +64,7 @@ export function WorldScreen({ data, snapshot, onOpenItem, onImport, onEditText, 
           <Hooks data={data} snapshot={snapshot} sandbox={sandbox} readDate={readDate} onReadDate={setReadDate} onOpenItem={onOpenItem} onEditText={onEditText} />
         </div>
         <div>
+          <LinksByKind snapshot={snapshot} sandbox={sandbox} onOpenItem={onOpenItem} />
           <h2>Things, by kind</h2>
           {kindsOf(things).map((kind) => (
             <Section
@@ -253,6 +255,51 @@ function Hooks(props: {
   );
 }
 
+// Every link in this world, grouped by kind: the list of link kinds in use, and each link with
+// its two ends and dates. Tap a link to see it, or either end.
+function LinksByKind({ snapshot, sandbox, onOpenItem }: { snapshot: Snapshot; sandbox: string; onOpenItem: (ref: ItemRef) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const links = snapshot.content.filter((i): i is Link => i.class === "link" && i.space === sandbox);
+  if (links.length === 0) return null;
+  const kinds = [...new Set(links.map((l) => l.kind))].sort();
+  const name = (key: string) => findByKey(snapshot.content, key, sandbox);
+  const openKey = (key: string) => {
+    const target = name(key);
+    if (target) onOpenItem(itemRef(target));
+  };
+  return (
+    <>
+      <h2>Links, by kind</h2>
+      <p className="muted">The link kinds used in this world: these are the words a route can follow (<code>serves &gt; paid_by</code>).</p>
+      <div className="card">
+        <ul className="plain">
+          {kinds.map((kind) => {
+            const here = links.filter((l) => l.kind === kind);
+            return (
+              <li key={kind}>
+                <button className="list-button bare" onClick={() => setOpen(open === kind ? null : kind)}>
+                  <span>
+                    <code>{kind}</code> <span className="muted">· {here.length} {here.length === 1 ? "link" : "links"}</span>
+                  </span>
+                  <span aria-hidden>{open === kind ? "▾" : "›"}</span>
+                </button>
+                {open === kind &&
+                  here.map((l) => (
+                    <p key={l.key} className="indent">
+                      <button className="link" onClick={() => openKey(l.from)}>{name(l.from)?.label ?? l.from}</button> → {kind.replace(/_/g, " ")} →{" "}
+                      <button className="link" onClick={() => openKey(l.to)}>{name(l.to)?.label ?? l.to}</button>{" "}
+                      <span className="muted">· {dates(l.start, l.end)}</span> <button className="link" onClick={() => onOpenItem(itemRef(l))}>open</button>
+                    </p>
+                  ))}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </>
+  );
+}
+
 function kindsOf(things: Thing[]): string[] {
   const kinds = new Set<string>();
   for (const thing of things) thing.kinds.forEach((k) => kinds.add(k));
@@ -276,12 +323,13 @@ function RulesInPlay({ snapshot, onOpen }: { snapshot: Snapshot; onOpen: (ref: I
   const rules = snapshot.content.filter((i): i is Rule => i.class === "rule" && i.package !== null && on.has(i.package));
   if (rules.length === 0) return <p className="muted">None: switch a rules package on in a context (Library tab).</p>;
   return (
-    <Section
-      title=""
-      items={rules.sort((a, b) => a.label.localeCompare(b.label))}
-      detail={(i) => (i.class === "rule" ? i.effect.stat + " · " + i.nature + " · " + i.category : "")}
-      onOpen={onOpen}
-    />
+    <div className="card">
+      {rules
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map((rule) => (
+          <RuleText key={itemRef(rule)} rule={rule} all={snapshot.content} onOpen={() => onOpen(itemRef(rule))} />
+        ))}
+    </div>
   );
 }
 

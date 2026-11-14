@@ -284,7 +284,9 @@ export function ruleToText(rule: Rule, pkg: Package | undefined): string {
 
 // Any one item as a file that re-imports into its own package or sandbox without changing
 // anything else. A unit comes with its own links; a package or sandbox gives the whole of it.
-export function itemToText(item: ContentItem, container: Container | undefined, content: ContentItem[]): string {
+// `withHeader: false` leaves out the package / sandbox header: for reading on screen. Copy,
+// export and edit always include it, so the text re-imports into the right place.
+export function itemToText(item: ContentItem, container: Container | undefined, content: ContentItem[], withHeader = true): string {
   if (item.class === "package" || item.class === "sandbox") return containerToText(item, content);
   if (item.class === "manifest") return manifestFile(item).join("\n") + "\n";
   const members = container ? membersOf(container, content) : [];
@@ -292,7 +294,7 @@ export function itemToText(item: ContentItem, container: Container | undefined, 
     item.class === "unit"
       ? members.filter((other): other is Link => other.class === "link" && other.from === item.key) // in written order
       : [];
-  const head = container ? containerHeader(container) : [];
+  const head = container && withHeader ? containerHeader(container) : [];
   return [...head, ...sections([item, ...ownLinks], content)].join("\n").replace(/^\n/, "") + "\n";
 }
 

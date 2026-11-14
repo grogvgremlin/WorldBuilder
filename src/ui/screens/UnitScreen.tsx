@@ -13,6 +13,7 @@ import type { ContextView } from "../../overlay/context";
 import type { AppliedStep, RuleCheck, ValueDerivation } from "../../overlay/derivation";
 import { Trace, TruthTag } from "../components/Trace";
 import { ItemText } from "../components/ItemText";
+import { Network } from "../components/Network";
 import { latestDate, ReadDate } from "../components/ReadDate";
 import { findByKey, itemRef, type ItemRef } from "../item-ref";
 
@@ -111,6 +112,18 @@ export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenIte
           <p className="muted">Nothing decided this order. Pin one rule before the other in the derivation to settle it.</p>
         </div>
       )}
+
+      <h2>Its world, in {readDate}</h2>
+      <div className="card">
+        <Network
+          data={data}
+          sandbox={sandbox}
+          thingKey={unitKey}
+          readDate={readDate}
+          refreshKey={snapshot}
+          onOpen={(key) => { const target = findByKey(snapshot.content, key, sandbox); if (target) onOpenItem(itemRef(target)); }}
+        />
+      </div>
 
       {!resolution.notYetRaised && <h2>Rules in this context</h2>}
       {resolution.rules.map((check) => (

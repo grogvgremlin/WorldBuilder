@@ -68,6 +68,7 @@ describe("guide examples", () => {
       [3, "“things” is world content: it belongs in a sandbox file (start it `sandbox: [label, key]`)"],
       [8, "set needs a target point: statline, inline or end"],
       [14, "scope: the condition ends too early"],
+      [17, "rule unknown_place names world things (Nowhere at all): a rule tied to a world belongs in a campaign package (layer: campaign), and this one is book"],
       [19, "missing reference Nowhere at all in scope"],
     ]);
   });

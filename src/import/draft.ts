@@ -10,7 +10,8 @@
 import type { ContentItem, DraftBatch, DraftTarget, EventRecord, ManifestContext, Package, Problem, Sandbox } from "../schema";
 import type { Store } from "../store/store";
 import { appendEvent, type LogDeps } from "../log/log";
-import { looksLikeKey } from "./expression-text";
+import { looksLikeKey, referencedKeys } from "./expression-text";
+import { unknownWordWarnings, worldNamingWarnings } from "./vocabulary";
 import { DEFAULT_STAT_ORDER, readText, slugify, type HeaderNeedingKey, type ParsedText, type RefSite } from "./text-format";
 
 // What is already deployed, for matching labels and spotting edits.
@@ -43,6 +44,11 @@ export function buildDraft(text: string, fileLabel: string, existing: Existing, 
   const labelMatches = matchReferences(parsed, others, finalSpace, problems);
   setLinkKeys(parsed);
   checkDuplicateKeys(parsed, problems);
+  // A sandbox's words are known; a library rule's world isn't, so it is checked per context
+  // on the Sandbox tab instead.
+  if (finalSpace !== "library") problems.push(...unknownWordWarnings(parsed.items, others, finalSpace));
+  if (parsed.fileKind === "package")
+    problems.push(...worldNamingWarnings(parsed.items, parsed.sourceLayer, (c) => [...referencedKeys(c).things, ...referencedKeys(c).hooks]));
 
   const deployed = new Map(existing.content.filter((i) => i.space === finalSpace).map((i) => [i.key, i]));
   warnAboutMoves(parsed, deployed, existing.content, problems);

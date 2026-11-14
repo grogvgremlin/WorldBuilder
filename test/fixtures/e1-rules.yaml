@@ -1,9 +1,10 @@
-# E1 rules (design/test-corpus-v2.md E1): a library package, world-agnostic.
-# Its rules name things by key (nuln, gunnery_school); each sandbox reads them in its own world.
+# E1 rules (design/test-corpus-v2.md E1): a campaign package in the library.
+# Its rules name world things by key (nuln, gunnery_school), so they are campaign rules, not
+# book rules (owner, 15 Nov): a book's rules don't know any one world.
 
 package: [E1 rules, e1_rules]
 edition: wfb6
-layer: book
+layer: campaign
 requires: [wfb6_base]
 
 scopes:

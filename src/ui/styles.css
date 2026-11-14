@@ -359,3 +359,21 @@ nav.tabs button.active {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* A rule folded under its name (package pages, rules in play). */
+.rule-text {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.rule-text summary {
+  cursor: pointer;
+}
+
+/* A word in the "What can I write?" lists. */
+.word {
+  display: inline-block;
+  margin-right: var(--space-3);
+}
+button.link.copy-word {
+  text-decoration: none;
+}

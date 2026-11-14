@@ -10,7 +10,7 @@ category_order:
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    books: [e2_rules]
+    campaign: [e2_rules]
 
 things:
   - [Nuln, nuln, [settlement, polity]]

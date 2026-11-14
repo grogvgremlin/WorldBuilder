@@ -2,8 +2,9 @@
 // Design: design/text-format-and-csv.md §1, §3, §8 (import review); build/slice-0-brief.md §3.
 
 import { useEffect, useState } from "react";
-import type { DraftBatch } from "../../schema";
+import type { DraftBatch, EventRecord } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
+import { WritingHelp } from "../components/WritingHelp";
 import { FIXTURE_SETS } from "../fixtures";
 
 interface Props {
@@ -85,6 +86,7 @@ export function ImportScreen({ data, snapshot, start, onChanged, onDeployed }: P
           Import into a draft
         </button>
       </div>
+      <WritingHelp all={snapshot.all} sandbox={snapshot.openSandbox} logged={loggedEvents(snapshot)} />
 
       {snapshot.drafts.length > 0 && (
         <>
@@ -178,4 +180,9 @@ function DraftReview({ draft, onDeploy, onDiscard, onBack }: { draft: DraftBatch
       <button onClick={() => navigator.clipboard?.writeText(draft.rewrittenText)}>Copy text</button>
     </>
   );
+}
+
+// Events recorded in the open sandbox's log and still standing, for "What can I write?".
+function loggedEvents(snapshot: Snapshot): EventRecord[] {
+  return snapshot.log.filter((e) => e.body.content.kind === "event" && e.status === "accepted").map((e) => e.body.content.values.event as EventRecord);
 }
