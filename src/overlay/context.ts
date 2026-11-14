@@ -11,7 +11,7 @@
 //
 // Pure: reads the World (content plus accepted entries), does no I/O.
 
-import { CONTEXT_GROUPS, type CategoryOrderValues, type CategoryRanks, type EditKind, type Manifest, type ManifestContext, type PackageSwitchValues, type PinValues } from "../schema";
+import { CONTEXT_GROUPS, type Expression, type CategoryOrderValues, type CategoryRanks, type EditKind, type Manifest, type ManifestContext, type PackageSwitchValues, type PinValues } from "../schema";
 import type { World } from "../world/world";
 import type { FoldStepName } from "./derivation";
 
@@ -165,6 +165,33 @@ function checkPackages(world: World, view: ContextView): void {
     if (state.group !== "core" && expected[state.group] !== pkg.sourceLayer) {
       view.warnings.push(pkg.label + " is listed under " + state.group + " but its layer is " + pkg.sourceLayer);
     }
+    warnUnusedLinkKinds(world, pkg.key, view);
+  }
+}
+
+// A rule from the library may follow a link kind this world never uses (a typo, or a rule
+// written for another world): its route reaches nothing here. Owner feedback of 15 Nov.
+function warnUnusedLinkKinds(world: World, packageKey: string, view: ContextView): void {
+  const used = new Set(world.links.map((l) => l.kind));
+  for (const rule of world.rules.filter((r) => r.package === packageKey)) {
+    const followed = [...linkKindsIn(rule.scope), ...(rule.trigger ? linkKindsIn(rule.trigger) : [])];
+    for (const kind of new Set(followed)) {
+      if (!used.has(kind)) view.warnings.push(rule.label + " follows the link kind “" + kind + "”, which no link in this world uses: it reaches nothing here");
+    }
+  }
+}
+
+function linkKindsIn(condition: Expression): string[] {
+  switch (condition.node) {
+    case "reaches":
+      return condition.via.map((step) => step.link);
+    case "all":
+    case "any":
+      return condition.of.flatMap(linkKindsIn);
+    case "not":
+      return linkKindsIn(condition.of);
+    default:
+      return [];
   }
 }
 

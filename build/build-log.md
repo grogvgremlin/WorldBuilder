@@ -6,13 +6,23 @@ Running record of the build: technical choices (with one line of why), the text 
 
 ## Slice 1 status (14 Nov 2026)
 
-Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up after the owner's checks; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
+Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up, hook objects (15 Nov) and the readability work (15 Nov) after the owner's checks; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
 
 | Part | State |
 |---|---|
 | **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container (manifest, core, rules, world, log). **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
 | **B** Army list and roster builder | Waiting on army data. Also in Part B: FAQs tied to what they correct (owner decision 5 above). **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
+
+### Owner points, 15 Nov: campaign rules, and seeing the whole story
+
+1. **Rules that name world things are campaign rules.** E1's rules name Nuln, the Gunnery School and the Wissenland treasury, so they can't be core or book: they "connect to world things and therefore by definition fall into campaign". Built: the E1, E2 and E4 rules packages are `layer: campaign` and listed under the context's `campaign` (values unchanged; E1, E2, E4, C1, C2 still pass). A package of layer book or FAQ (or with no layer, which defaults to book) whose rules name a world thing or hook gets the warning "names world things: … belongs in a campaign package". House rules are left alone (try-1's garrison rule is a house rule that names Nuln). See question 15.
+2. **"It's very difficult to test this only being able to see half the story."** Every card now shows its whole network at a read date, both ways: **Connected** (each link out and in, so the Gunnery School shows the Handgunners), **what it reaches** and **reached from**, each branch with its route written as a condition would write it (`serves > paid_by`, tap to copy), and the rules that name it. The unit card has the same. World lists **every link, grouped by kind**.
+3. **What can I write?** The Import tab has a panel listing the words of a condition and this world's own words: link kinds (with an example link each), things by key, kinds (`any settlement`), event types with their parts (`withholder`), hooks and named scopes; tap to copy. A stand-in for autocomplete until there are editors.
+4. **Warnings for words nothing uses.** A route along a link kind no link uses, or `any <kind>` no thing has, is warned on import for a sandbox's own files, and on the Sandbox tab for library rules switched on in a context ("follows the link kind … which no link in this world uses").
+5. **Hooks in plain words**: "Watches: true whenever an event of type “wages withheld”, with Wissenland treasury as the withholder, is in force."
+6. **Rule text inline** on package pages and under World → Rules in play (folded under each rule's name), and a unit's or rule's text on screen without the package or sandbox header (Copy, Export and Edit as text keep it, so the text still re-imports into the right place).
+7. **Later, with Part B:** the unit card's link back to its source unit in the army list.
 
 ### Owner decisions, 15 Nov: events, hooks, rules, and the log screen
 
@@ -86,6 +96,9 @@ From the owner's checks of Part A on the phone and desktop. **To carry back to t
 | A recorded event with no type gets its name as its type; roles with no part are "involved" | The form stays four boxes; hooks can still match by event or by type. |
 | A thing's tree walks links on at the read date, each thing once by its shortest route, at most 8 hops | Readable, and stops runaway walks in big worlds. |
 | `src/ui/tokens.css` holds every colour, type size, spacing and radius; two columns above 760px | Brief §1.6: the look iterates; world views desktop-first, lists phone-first. |
+| A thing's **network** (Connected, reaches, reached from) is read at the card's read date; inward routes are written from the far end, as the other thing's condition would write them | A route is only useful if it can be pasted into a condition. |
+| Unknown link kinds in a library rule are warned per context (Sandbox tab), not at import | A library rule doesn't know its world until a context switches it on; warning at import would flag every rule loaded before its world. |
+| "Names world things" counts things and hooks in the rule's scope and trigger, not what a named scope names | Keeps the check to what the rule itself writes. |
 
 ### The text shape, slice 1
 Three kinds of file (owner decisions of 14 Nov): `manifest:` is a game (statline, bag order, core); `package:` is a rules package (in the library, or local to a sandbox with `sandbox: key`); `sandbox:` is a world (its category order, contexts with books / faqs / house / campaign, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.
@@ -96,6 +109,7 @@ Three kinds of file (owner decisions of 14 Nov): `manifest:` is a game (statline
 12. **Named scopes in both places.** Built: a named scope can be in a library package (with the rules that use it) or in a sandbox. Right?
 13. **Package switches and the read date.** A switch applies at every read date (out of fiction). Should a GM be able to switch a package on from an in-world date (a campaign rule that only starts in 2524)? Today that's a rule trigger's job.
 14. **Pins across steps.** A pin between rules in different steps or target points is ignored (it can't change their order). Right?
+15. **Writing scopes isn't intuitive (owner, 15 Nov).** `reaches(wissenland_treasury, serves > paid_by)` reads as "the unit serves something, and that something is paid by the Wissenland treasury", but the owner found it hard to see where `paid_by` comes in: it's a link on the commission, not on the unit, so nothing on the unit's card says it's there. The cards now write each route out, and "What can I write?" lists the words, but the writing itself is still a bare expression. **For design:** a sentence builder or route helper (pick the unit, then step along its links: serves → Handgunners' commission → paid by → Wissenland treasury, and the condition is written for you). Editors are out of slice 1 (brief §1.4), so this is logged, not built. Also: is the "names world things → campaign" rule (point 1 above) right for house rules too, and for a rule that names a world thing only through a named scope?
 
 ---
 

@@ -4,7 +4,7 @@
 
 package: [E4 rules, e4_rules]
 edition: wfb6
-layer: book
+layer: campaign
 
 rules:
   - rule: [Extra training spinach, averland_spinach_strength]

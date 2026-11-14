@@ -54,6 +54,43 @@ describe("a thing's tree", () => {
   });
 });
 
+describe("the whole story from a card", () => {
+  it("writes each route from a unit as a condition would", async () => {
+    const { content, entries } = await e1();
+    const tree = thingTree(buildWorld(content, entries), "nuln_handgunners", 2525);
+    // One hop first, then two; within that, in the order the links are stored.
+    expect(tree.reaches.map((b) => [b.label, b.pattern]).sort()).toEqual([
+      ["Gunnery School", "member_of"],
+      ["Handgunners' commission", "serves"],
+      ["Nuln", "raised_at"],
+      ["Wissenland treasury", "serves > paid_by"],
+      ["Wissenland", "raised_at > in"],
+    ]);
+    expect(tree.reaches.map((b) => b.hops)).toEqual([1, 1, 1, 2, 2]);
+  });
+
+  it("shows what links to a thing, with the route from the far end", async () => {
+    const { content, entries } = await e1();
+    const tree = thingTree(buildWorld(content, entries), "wissenland_treasury", 2525);
+    expect(tree.reachedBy.map((b) => [b.label, b.pattern])).toEqual([
+      ["Handgunners' commission", "paid_by"],
+      ["Nuln Handgunners", "serves > paid_by"],
+    ]);
+  });
+
+  it("lists a thing's direct connections both ways, by kind (the register)", async () => {
+    const { content, entries } = await e1();
+    const school = thingTree(buildWorld(content, entries), "gunnery_school", 2525).connections;
+    expect(school).toEqual({ out: [], in: [{ kind: "member_of", from: [expect.objectContaining({ key: "nuln_handgunners", label: "Nuln Handgunners" })] }] });
+    const nuln = thingTree(buildWorld(content, entries), "nuln", 2525).connections;
+    expect(nuln.out.map((g) => g.kind)).toEqual(["in"]);
+    expect(nuln.in.map((g) => [g.kind, g.from.map((c) => c.label)])).toEqual([
+      ["raised_at", ["Nuln Handgunners"]],
+      ["stationed_at", ["Nuln Handgunners"]],
+    ]);
+  });
+});
+
 describe("where a rule lands", () => {
   it("lists only the units Nuln civic pride applies to, each with its route", async () => {
     const { content, entries } = await e1(pfeildorf);

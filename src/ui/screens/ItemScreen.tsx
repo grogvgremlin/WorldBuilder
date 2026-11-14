@@ -15,8 +15,9 @@ import { describeRanks } from "../../overlay/context";
 import type { Landing, UnitFilter } from "../../overlay/landing";
 import { unitLinkKinds } from "../../overlay/landing";
 import type { RuleCheck } from "../../overlay/derivation";
-import type { ThingTree } from "../../world/tree";
 import { ItemText } from "../components/ItemText";
+import { Network } from "../components/Network";
+import { RuleText } from "../components/RuleText";
 import { latestDate, ReadDate } from "../components/ReadDate";
 import { WhyNotTree } from "./UnitScreen";
 import { findByKey, itemRef, type ItemRef } from "../item-ref";
@@ -108,58 +109,21 @@ interface ThingViewProps {
   lookup: (key: string) => ContentItem | undefined;
 }
 
-function ThingView({ data, sandbox, thing, readDate, Ref, onOpenItem, lookup }: ThingViewProps) {
-  const [tree, setTree] = useState<ThingTree | null>(null);
-  useEffect(() => {
-    void data.thingTree(sandbox, thing.key, readDate).then(setTree);
-  }, [data, sandbox, thing.key, readDate]);
-
+function ThingView({ data, sandbox, thing, readDate, onOpenItem, lookup }: ThingViewProps) {
   const open = (key: string) => {
     const target = lookup(key);
     if (target) onOpenItem(itemRef(target));
   };
-
   return (
     <>
       <p>
         Kinds: {thing.kinds.length ? thing.kinds.map((k) => <span key={k} className="tag">{k}</span>) : <span className="muted">none</span>}
       </p>
-      {!tree && <p className="muted">Reading…</p>}
-      {tree && (
-        <>
-          <h3>What it reaches, in {readDate}</h3>
-          {tree.reaches.length === 0 && <p className="muted">Nothing.</p>}
-          {tree.reaches.map((b) => (
-            <p key={b.key}>
-              <button className="link" onClick={() => open(b.key)}>{b.label}</button> <span className="muted">{branchNote(b)}</span>
-            </p>
-          ))}
-          <h3>What reaches it, in {readDate}</h3>
-          {tree.reachedBy.length === 0 && <p className="muted">Nothing.</p>}
-          {tree.reachedBy.map((b) => (
-            <p key={b.key}>
-              <button className="link" onClick={() => open(b.key)}>{b.label}</button> <span className="muted">{branchNote(b)}</span>
-            </p>
-          ))}
-          <h3>Rules that name it</h3>
-          {tree.rules.length === 0 && <p className="muted">None.</p>}
-          {tree.rules.map(({ rule, via }) => (
-            <p key={rule.key}>
-              <Ref k={rule.key} /> <span className="muted">· through {via}</span>
-            </p>
-          ))}
-        </>
-      )}
+      <Network data={data} sandbox={sandbox} thingKey={thing.key} readDate={readDate} onOpen={open} />
     </>
   );
 }
 
-// One hop: just the link kind. Longer: the whole route, so the steps in between show.
-function branchNote(branch: { route: string; hops: number }): string {
-  if (branch.hops > 1) return "· by" + branch.route;
-  const kind = /[—←]([^→—]+)[→—]/.exec(branch.route)?.[1]?.trim() ?? "";
-  return "· " + kind;
-}
 
 // A thing's own links, both ways, with their dates: tap one to see it and its text.
 function ThingLinks({ thing, content, Ref, onOpenItem }: { thing: Thing; content: ContentItem[]; Ref: RefButton; onOpenItem: (ref: ItemRef) => void }) {
@@ -194,7 +158,10 @@ function HookPage({ hook, content, labelOf, Ref }: { hook: Hook; content: Conten
   const rules = content.filter((i): i is Rule => i.class === "rule" && i.trigger !== null && referencedKeys(i.trigger).hooks.includes(hook.key));
   return (
     <>
-      <p>True when {readBackCondition(hook.condition, labelOf, "clause")}.</p>
+      <p>Watches: true whenever {readBackCondition(hook.condition, labelOf, "clause")}.</p>
+      <p className="muted">
+        A hook watches the world's events. It is true while a matching event is in force at the date you read, false otherwise. Record events on the World tab.
+      </p>
       <p>
         Rules on it:{" "}
         {rules.length === 0
@@ -389,6 +356,12 @@ function PackageView({ pkg, all, onOpenItem }: { pkg: Package; all: ContentItem[
       <ul className="plain">
         {pkg.members.map((key) => {
           const member = all.find((i) => i.space === pkg.space && i.key === key);
+          if (member?.class === "rule")
+            return (
+              <li key={key}>
+                <RuleText rule={member} all={all} onOpen={() => onOpenItem(itemRef(member))} />
+              </li>
+            );
           return (
             <li key={key}>
               <span className="tag">{member?.class ?? "?"}</span>{" "}

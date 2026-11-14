@@ -86,7 +86,7 @@ The manifest is the game itself. It doesn't list books, FAQs or campaigns: each 
 ```yaml
 package: [E1 rules, e1_rules]   # (label, key)
 edition: wfb6                   # the game it belongs to (warned if a context of another game switches it on)
-layer: book                     # book | faq | house | campaign (default book)
+layer: campaign                 # book | faq | house | campaign (default book)
 requires: [wfb6_base]           # optional; a warning if one is off where this is on
 conflicts: []                   # optional; a warning if both are on
 
@@ -95,6 +95,7 @@ rules:    [...]                 # rules (§5)
 ```
 
 - `layer` is the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order. A rule can override it with its own `layer:`. A context lists the package under the matching group (books, faqs, house, campaign); a mismatch is warned.
+- **Book and FAQ rules don't know any world.** A rule that names a world thing or hook (`nuln`, `wissenland_treasury`, `treasury_not_paying`) is a campaign rule: put it in a `layer: campaign` package. The review warns "rule … names world things: … belongs in a campaign package" when a book or FAQ package (or one with no `layer`) does it. Book rules reach the world through link kinds and kinds only: `reaches(any settlement, stationed_at)`.
 - **Local to a sandbox** (under review): `sandbox: e1` under the header keeps the package with that sandbox instead of the library. The design is being updated: rules belong to a game, so a sandbox-local package should hold world content, not game rules. Don't rely on this yet.
 - **Reusing a key moves the item.** Importing a rule or manifest with a key that's already in another package edits that item and moves it here; the review warns "this replaces … moving it here". Use a new key to add a separate one.
 
@@ -112,10 +113,10 @@ category_order:                       # how places, organisations and titles sta
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6                          # the game: brings its core
-    books: [e1_rules]                       # each list in order
+    books: []                               # each list in order
     faqs: []
     house: []
-    campaign: [wissenland_campaign_rules]
+    campaign: [e1_rules, wissenland_campaign_rules]
     # category_order: {...}                 # optional: overrides the world's for this game
 
 things:  [...]      # §4.1
@@ -246,7 +247,11 @@ reaches(siege_of_nuln, participated_in, ever)
 - The **route**: link kinds separated by `>`. `*` after a kind means "any number of times, including none". `raised_at > in*`: the place it was raised at, or anything that place is in.
 - `, ever`: any link that had started by the date, even if it has ended since.
 
-**in_force: is an event on at the date?** `in_force(wages_withheld, withholder = wissenland_treasury)`: an event kind or key, then any number of `role = thing`.
+**Reading a route.** Each step is a link kind, followed from where the last step ended. `reaches(wissenland_treasury, serves > paid_by)`: the unit has a `serves` link (to the Handgunners' commission), and *that* has a `paid_by` link (to the Wissenland treasury). `paid_by` isn't on the unit: it's on the commission. To find a route, open the unit (or any thing): **Its network** lists everything it reaches with the route written out (`serves > paid_by`); tap it to copy. Open the far end to see **Reached from**, written the same way.
+
+**Which words can I use?** On **Import**, tap **What can I write?**: this world's link kinds (each with an example link), things by key, kinds (`any settlement`), event types with their parts, hooks and named scopes. A link kind nothing uses, or a kind no thing has, is warned ("the route reaches nothing").
+
+**in_force: is an event on at the date?** `in_force(wages_withheld, withholder = wissenland_treasury)`: an event type or one event's key, then any number of `part = thing`. Read it as "an event of type wages withheld, with the Wissenland treasury as the withholder, is in force". `withholder` is the part the treasury plays in that event: whatever you called it when you recorded the event (World → Record an event → things involved, with their part).
 
 **Combining:** `all(…)`, `any(…)`, `not(…)`.
 
@@ -322,9 +327,8 @@ sandbox: [E1 Nuln, e1]
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    books: [e1_rules]
     house: [garrison_pride]
-    campaign: [wissenland_campaign_rules]
+    campaign: [e1_rules, wissenland_campaign_rules]
 ```
 
 **Expect:** Nuln Handgunners, 2525: **Ld 8**. Origin 7 → 8 → 8. Stationed: garrison pride (house) +1 → 9, then unpaid wages (campaign) −1 → **8**: "campaign runs after house", the source layer decided it.
@@ -413,7 +417,7 @@ rules:
     category: place
 ```
 
-**Expect:** only "Unknown place" imports. Problems: line 3 "things is world content: it belongs in a sandbox file"; line 8 "set needs a target point"; line 14 "scope: the condition ends too early"; line 19 "missing reference Nowhere at all in scope" (a warning: it still imports).
+**Expect:** only "Unknown place" imports. Problems: line 3 "things is world content: it belongs in a sandbox file"; line 8 "set needs a target point"; line 14 "scope: the condition ends too early"; line 17 "rule unknown_place names world things … belongs in a campaign package" (a warning: the file has no `layer`, so it is a book, and a book's rules don't know any one world); line 19 "missing reference Nowhere at all in scope" (a warning: it still imports).
 
 ---
 

@@ -73,6 +73,7 @@ describe("text import", () => {
       [4, "error", "set needs a target point: statline, inline or end"],
       [7, "warning", "no category: it runs after the known categories"],
       [9, "error", "scope: the condition ends too early"],
+      [11, "warning", "rule fine names world things (Nowhere at all): a rule tied to a world belongs in a campaign package (layer: campaign), and this one is book"],
       [13, "warning", "missing reference Nowhere at all in scope"],
     ]);
   });
@@ -145,6 +146,7 @@ describe("references by label (slice 1 brief §2.3)", () => {
     await loadSet(store, deps, "E1");
     const text = [
       "package: [School rules, school_rules]",
+      "layer: campaign",
       "rules:",
       "  - rule: [Drill, drill]",
       "    effect: [Ld, +1]",
@@ -162,12 +164,12 @@ describe("references by label (slice 1 brief §2.3)", () => {
     const deps = testDeps();
     await loadFixture(store, deps, "a", "sandbox: [A, a]\nthings:\n  - [Nuln, nuln_a, [settlement]]\n");
     await loadFixture(store, deps, "b", "sandbox: [B, b]\nthings:\n  - [Nuln, nuln_b, [settlement]]\n");
-    const draft = await importToDraft(store, deps, "package: [P, p]\nrules:\n  - rule: [R, r]\n    effect: [Ld, 1]\n    scope: reaches(Nuln, raised_at)\n    nature: origin\n    category: place\n");
+    const draft = await importToDraft(store, deps, "package: [P, p]\nlayer: campaign\nrules:\n  - rule: [R, r]\n    effect: [Ld, 1]\n    scope: reaches(Nuln, raised_at)\n    nature: origin\n    category: place\n");
     expect(draft.problems.map((p) => p.message)).toEqual(["“Nuln” in scope matches 2 items (nuln_a, nuln_b): write the key"]);
   });
 
   it("accepts a key-like name in a library rule with no sandbox loaded yet", () => {
-    const draft = buildDraft("package: [P, p]\nrules:\n  - rule: [R, r]\n    effect: [Ld, 1]\n    scope: reaches(nuln, raised_at)\n    nature: origin\n    category: place\n", "x", none, testDeps());
+    const draft = buildDraft("package: [P, p]\nlayer: campaign\nrules:\n  - rule: [R, r]\n    effect: [Ld, 1]\n    scope: reaches(nuln, raised_at)\n    nature: origin\n    category: place\n", "x", none, testDeps());
     expect(draft.problems).toEqual([]);
   });
 });

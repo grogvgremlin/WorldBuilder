@@ -22,13 +22,13 @@ async function contextView(store: MemoryStore, sandbox: string) {
 }
 
 describe("the manifest, the core and the context's groups", () => {
-  it("brings the manifest's core first, locked, then books and campaign in order", async () => {
+  it("brings the manifest's core first, locked, then the campaign packages in order", async () => {
     const store = new MemoryStore();
     await loadSet(store, testDeps(), "E1");
     const view = await contextView(store, "e1");
     expect(view.packages.map((p) => [p.key, p.group, p.locked])).toEqual([
       ["wfb6_base", "core", true],
-      ["e1_rules", "books", false],
+      ["e1_rules", "campaign", false],
       ["wissenland_campaign_rules", "campaign", false],
     ]);
     expect(view.warnings).toEqual([]);
@@ -51,8 +51,8 @@ describe("the manifest, the core and the context's groups", () => {
     expect((await contextView(store, "e1")).categoryOrder.origin.note).toBe("E1 Nuln default");
 
     const world = fixtureText("e1-world.yaml").replace(
-      "    campaign: [wissenland_campaign_rules]\n",
-      "    campaign: [wissenland_campaign_rules]\n    category_order:\n      origin: [organisation, place, title]\n      stationed: [place, organisation, title]\n",
+      "    campaign: [e1_rules, wissenland_campaign_rules]\n",
+      "    campaign: [e1_rules, wissenland_campaign_rules]\n    category_order:\n      origin: [organisation, place, title]\n      stationed: [place, organisation, title]\n",
     );
     await loadFixture(store, deps, "e1-world.yaml", world);
     const view = await contextView(store, "e1");
@@ -70,7 +70,7 @@ describe("the manifest, the core and the context's groups", () => {
     await loadSet(store, deps, "E1");
     await loadFixture(store, deps, "x", "package: [Old FAQ, old_faq]\nedition: wfb5\nlayer: faq\n");
     await loadFixture(store, deps, "y", "package: [Misfiled, misfiled]\nedition: wfb6\nlayer: house\n");
-    await loadFixture(store, deps, "w", fixtureText("e1-world.yaml").replace("    books: [e1_rules]\n", "    books: [e1_rules, misfiled]\n    faqs: [old_faq]\n"));
+    await loadFixture(store, deps, "w", fixtureText("e1-world.yaml").replace("    campaign: [e1_rules", "    books: [misfiled]\n    faqs: [old_faq]\n    campaign: [e1_rules"));
     expect((await contextView(store, "e1")).warnings).toEqual([
       "Misfiled is listed under books but its layer is house",
       "Old FAQ is for edition wfb5, not wfb6",
@@ -89,7 +89,7 @@ describe("the manifest, the core and the context's groups", () => {
     await deployDraft(store, deps, draft);
     expect((await store.listContent()).filter((i) => i.key === "garrison").map((i) => i.space)).toEqual(["e1"]);
 
-    await loadFixture(store, deps, "w", fixtureText("e1-world.yaml").replace("campaign: [wissenland_campaign_rules]", "campaign: [wissenland_campaign_rules, garrison]"));
+    await loadFixture(store, deps, "w", fixtureText("e1-world.yaml").replace("campaign: [e1_rules, wissenland_campaign_rules]", "campaign: [e1_rules, wissenland_campaign_rules, garrison]"));
     expect((await resolveStored(store, "e1", "nuln_handgunners", 2525)).values.Ld).toBe(8);
   });
 
@@ -138,7 +138,7 @@ describe("import fixes", () => {
     const store = new MemoryStore();
     const deps = testDeps();
     await loadSet(store, deps, "E1");
-    const copy = "package: [My copy, my_copy]\nedition: wfb6\nrules:\n  - rule: [Nuln civic pride, nuln_civic_pride]\n    effect: [Ld, 1]\n    scope: reaches(nuln, raised_at)\n    nature: origin\n    category: place\n";
+    const copy = "package: [My copy, my_copy]\nedition: wfb6\nlayer: campaign\nrules:\n  - rule: [Nuln civic pride, nuln_civic_pride]\n    effect: [Ld, 1]\n    scope: reaches(nuln, raised_at)\n    nature: origin\n    category: place\n";
     const draft = await importToDraft(store, deps, copy);
     expect(draft.problems.map((p) => p.message)).toEqual([
       "this replaces the rule nuln_civic_pride in E1 rules, moving it here: use a new key to add a separate one",

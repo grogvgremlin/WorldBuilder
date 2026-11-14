@@ -46,8 +46,12 @@ export function readBackCondition(expression: Expression, labelOf: LabelOf, phra
       return verb + target + " by " + route + when;
     }
     case "in_force": {
-      const roles = Object.entries(expression.roles).map(([role, key]) => words(role) + ": " + labelOf(key));
-      return words(expression.what) + " is in force" + (roles.length ? " (" + roles.join(", ") + ")" : "");
+      // `what` is either one event's key ("the event “Siege of Nuln”") or an event type
+      // ("an event of type wages withheld"). A key with a label is an event; anything else, a type.
+      const named = labelOf(expression.what) !== expression.what;
+      const roles = Object.entries(expression.roles).map(([role, key]) => labelOf(key) + " as the " + words(role));
+      const subject = named ? "the event “" + labelOf(expression.what) + "”" : "an event of type “" + words(expression.what) + "”";
+      return subject + (roles.length ? ", with " + roles.join(" and ") + "," : "") + " is in force";
     }
     case "named_scope":
       return (phrasing === "clause" ? "the unit is" : "are") + " in the named scope “" + labelOf(expression.key) + "”";

@@ -11,8 +11,7 @@ category_order:
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    books: [e1_rules]
-    campaign: [wissenland_campaign_rules]
+    campaign: [e1_rules, wissenland_campaign_rules]
 
 things:
   - [Nuln, nuln, [settlement, polity]]

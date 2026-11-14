@@ -22,7 +22,8 @@ export function ItemText({ all, item, label = "View text", onEditText }: Props) 
   const container = all.find(
     (i): i is Container => (i.class === "package" || i.class === "sandbox") && i.key === item.package && i.space === item.space && item.class !== "manifest",
   );
-  const text = itemToText(item, container, all);
+  const text = itemToText(item, container, all); // what's copied, exported or edited
+  const shown = itemToText(item, container, all, false); // on screen: the item itself
   const isContainer = item.class === "package" || item.class === "sandbox";
 
   return (
@@ -37,7 +38,7 @@ export function ItemText({ all, item, label = "View text", onEditText }: Props) 
       </div>
       {open && (
         <>
-          <pre className="code">{text}</pre>
+          <pre className="code">{shown}</pre>
           <div className="row">
             <button onClick={async () => { await navigator.clipboard?.writeText(text); setCopied(true); }}>{copied ? "Copied" : "Copy"}</button>
             <button onClick={() => saveFile(item.key + ".yaml", text, "text/plain")}>Export</button>
@@ -45,7 +46,7 @@ export function ItemText({ all, item, label = "View text", onEditText }: Props) 
               <button onClick={() => saveFile(container.key + ".yaml", containerToText(container, all), "text/plain")}>Export {container.class}</button>
             )}
           </div>
-          <p className="muted">Re-importing this text changes nothing; edit it first to change it.</p>
+          <p className="muted">Copy, Export and Edit as text include the {container?.class ?? "file"}'s header, so the text re-imports into the right place. Re-importing it unchanged changes nothing.</p>
         </>
       )}
     </div>
