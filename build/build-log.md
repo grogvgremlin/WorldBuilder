@@ -21,7 +21,7 @@ From the owner's checks of Part A on the phone and desktop. **To carry back to t
 1. **The manifest is the game, and only the game**: its statline, its bag order, and its **core** packages (always applied; can't be switched off as a whole). It's a file of its own with **one key** (`manifest: [label, key]`), not something inside a package.
 2. **The category order belongs to the world, not the game.** Origin and stationed only exist when a campaign runs in a world; a pick-up game has neither. It's set on the **sandbox**, and a context can override it for one game. This follows `rules-overlay.md` §12 ("shipped in the default setting package, editable per campaign or context"). Brief §1.2 had it in the manifest's base package; the brief should be corrected.
 3. **A context lists its packages in groups**, each in order: **books, FAQs, house rules, campaign**. The manifest brings its core. Each group expects packages of the matching source layer (warned if not).
-4. **Campaign packages can be local to a sandbox** (`sandbox: key` under a package's header), or in the library. This answers question 11.
+4. ~~**Campaign packages can be local to a sandbox** (`sandbox: key` under a package's header), or in the library.~~ **Under review (owner, 14 Nov):** rules are specific to a game, so only *non-game* packages (world or setting content) can be local to a sandbox; a game's campaign rules belong to that game (in the library, or local to the context). Design is being updated. Until then the build still lets a sandbox-local package hold rules and be switched on under a context's `campaign`; this will change to match the design.
 5. **FAQs attach to what they correct** (agreed, for Part B): package-level `corrects:` (the design's `requires`), and per entry `amends` and `supersedes` (`patches.md` §6). The source layer stays as the tie-break. Built with army list errata in Part B.
 
 ### The tidy-up after Part A (14 Nov)
@@ -75,7 +75,7 @@ Three kinds of file (owner decisions of 14 Nov): `manifest:` is a game (statline
 
 ### Questions for design (slice 1)
 10. **Library rules name sandbox things by bare key.** A library rule says `reaches(nuln, …)`; each sandbox reads `nuln` in its own world. v2-reconciliation §3 says cross-namespace references carry a prefix and a bare key works inside its own namespace. Built as: bare keys in library rules resolve in the sandbox that reads them. Is that intended, or should a library rule reach world things another way (template slots, a setting package)?
-11. ~~**Where campaign packages live.**~~ **Owner decision (14 Nov):** both: in the library, or local to a sandbox. Built.
+11. **Where campaign packages live.** Under review: see owner decision 4 above (rules belong to a game, not a sandbox).
 12. **Named scopes in both places.** Built: a named scope can be in a library package (with the rules that use it) or in a sandbox. Right?
 13. **Package switches and the read date.** A switch applies at every read date (out of fiction). Should a GM be able to switch a package on from an in-world date (a campaign rule that only starts in 2524)? Today that's a rule trigger's job.
 14. **Pins across steps.** A pin between rules in different steps or target points is ignored (it can't change their order). Right?

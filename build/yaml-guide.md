@@ -91,7 +91,7 @@ rules:    [...]                 # rules (§5)
 ```
 
 - `layer` is the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order. A rule can override it with its own `layer:`. A context lists the package under the matching group (books, faqs, house, campaign); a mismatch is warned.
-- **Local to a sandbox:** add `sandbox: e1` under the header. The package lives with that sandbox (not in the library), and only that sandbox's contexts can switch it on. Use it for a campaign's own rules.
+- **Local to a sandbox** (under review): `sandbox: e1` under the header keeps the package with that sandbox instead of the library. The design is being updated: rules belong to a game, so a sandbox-local package should hold world content, not game rules. Don't rely on this yet.
 - **Reusing a key moves the item.** Importing a rule or manifest with a key that's already in another package edits that item and moves it here; the review warns "this replaces … moving it here". Use a new key to add a separate one.
 
 ---
