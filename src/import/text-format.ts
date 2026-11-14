@@ -29,7 +29,7 @@
 
 import { isMap, isSeq, LineCounter, parseDocument, type Node as YamlNode, type YAMLMap } from "yaml";
 import { CONTEXT_GROUPS, type CategoryRanks, type ContentItem, type EditKind, type EventRecord, type Expression, type ManifestContext, type Problem, type SourceLayer, type StepOrders } from "../schema";
-import { conditionRefs, expressionToText, parseExpression } from "./expression-text";
+import { conditionRefs, conditionToText, parseExpression, type BareKey } from "./expression-text";
 import {
   DEFAULT_STAT_ORDER,
   listOf,
@@ -71,7 +71,7 @@ export interface HeaderNeedingKey {
 // A place that names another item by key or by label. Matched to a key in import/draft.ts.
 export interface RefSite {
   line: number | null;
-  kind: "thing" | "scope" | "package" | "manifest";
+  kind: "thing" | "scope" | "hook" | "package" | "manifest";
   written: string;
   where: string; // "link", "scope", "roles", "context" ...
   set(key: string): void;
@@ -107,7 +107,7 @@ export type StatOrderFor = (contextKey: string | null, contextsInFile: ManifestC
 
 const MANIFEST_SECTIONS = new Set(["manifest", "stats", "bag_order", "core"]);
 const PACKAGE_SECTIONS = new Set(["package", "sandbox", "edition", "layer", "requires", "conflicts", "scopes", "rules"]);
-const SANDBOX_SECTIONS = new Set(["sandbox", "category_order", "contexts", "things", "links", "units", "events", "log", "scopes"]);
+const SANDBOX_SECTIONS = new Set(["sandbox", "category_order", "contexts", "things", "links", "units", "events", "log", "scopes", "hooks"]);
 const SECTIONS: Record<FileKind, Set<string>> = { manifest: MANIFEST_SECTIONS, package: PACKAGE_SECTIONS, sandbox: SANDBOX_SECTIONS };
 
 // --- Reading the whole text -------------------------------------------------------------------
@@ -174,6 +174,9 @@ export function readText(text: string, fallbackLabel: string, statOrderFor: Stat
         break;
       case "scopes":
         items.forEach((node) => guard(reader, node, () => readScope(node, reader, parsed)));
+        break;
+      case "hooks":
+        items.forEach((node) => guard(reader, node, () => readHook(node, reader, parsed)));
         break;
       case "rules":
         items.forEach((node) => guard(reader, node, () => readRule(node, reader, parsed)));
@@ -329,7 +332,9 @@ function readManifest(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
 }
 
 // Reads a condition and registers every name in it for matching.
-function readCondition(node: unknown, reader: Reader, parsed: ParsedText, what: string): Expression | null {
+// `bareKey` says what a bare key means here: a named scope (scopes, queries) or a hook
+// (triggers, a hook's own condition).
+function readCondition(node: unknown, reader: Reader, parsed: ParsedText, what: string, bareKey: BareKey = "named_scope"): Expression | null {
   const text = textOf(node);
   if (!text) {
     reader.problem(node as YamlNode, "error", what + " is missing");
@@ -337,13 +342,13 @@ function readCondition(node: unknown, reader: Reader, parsed: ParsedText, what: 
   }
   let expression: Expression;
   try {
-    expression = parseExpression(text);
+    expression = parseExpression(text, bareKey);
   } catch (error) {
     reader.problem(node as YamlNode, "error", what + ": " + (error as Error).message);
     return null;
   }
   const range = rangeOf(node);
-  const site: ConditionSite | null = range ? { range, render: () => expressionToText(expression) } : null;
+  const site: ConditionSite | null = range ? { range, render: () => conditionToText(expression, bareKey) } : null;
   for (const ref of conditionRefs(expression)) {
     parsed.refs.push({ line: reader.lineOf(node as YamlNode), kind: ref.kind, written: ref.written, where: what, set: ref.set, range: null, condition: site });
   }
@@ -361,6 +366,20 @@ function readScope(node: unknown, reader: Reader, parsed: ParsedText): void {
   addItem(parsed, header, { class: "scope", key: header.key ?? "", label: header.label, space: "", package: null, query }, reader.lineOf(node));
 }
 
+// A hook (a world item): a plain-words label and what it watches, e.g.
+//   - hook: [Treasury not paying, treasury_not_paying]
+//     when: in_force(wages_withheld, withholder = wissenland_treasury)
+function readHook(node: unknown, reader: Reader, parsed: ParsedText): void {
+  if (!isMap(node)) {
+    reader.problem(node as YamlNode, "error", "a hook should be a map: hook, when");
+    return;
+  }
+  const header = readHeader(node.get("hook", true), reader, "hook");
+  const condition = readCondition(node.get("when", true), reader, parsed, "when", "hook");
+  if (!header || !condition) return;
+  addItem(parsed, header, { class: "hook", key: header.key ?? "", label: header.label, space: "", package: null, condition }, reader.lineOf(node));
+}
+
 function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
   if (!isMap(node)) {
     reader.problem(node as YamlNode, "error", "a rule should be a map: rule, effect, scope, trigger, nature, category");
@@ -370,7 +389,7 @@ function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
   const effect = readEffect(node.get("effect", true), reader);
   const scope = readCondition(node.get("scope", true), reader, parsed, "scope");
   const triggerNode = node.get("trigger", true);
-  const trigger = triggerNode ? readCondition(triggerNode, reader, parsed, "trigger") : null;
+  const trigger = triggerNode ? readCondition(triggerNode, reader, parsed, "trigger", "hook") : null;
   const nature = textOf(node.get("nature", true));
   const category = textOf(node.get("category", true));
   const layer = textOf(node.get("layer", true)) ?? parsed.sourceLayer;

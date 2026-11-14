@@ -174,6 +174,9 @@ function pool(kind: RefSite["kind"], parsed: ParsedText, content: ContentItem[],
       return all.filter((i) => (i.class === "thing" || i.class === "unit") && (space === "library" ? i.space !== "library" : i.space === space));
     case "scope":
       return all.filter((i) => i.class === "scope" && (i.space === "library" || i.space === space));
+    case "hook":
+      // Hooks are world items: a sandbox's own; a library rule may name one in any sandbox.
+      return all.filter((i) => i.class === "hook" && (space === "library" ? i.space !== "library" : i.space === space));
     case "package":
       // The library's packages, and packages local to this sandbox.
       return all.filter((i) => i.class === "package" && (i.space === "library" || i.space === space));
@@ -196,7 +199,7 @@ function matchReferences(parsed: ParsedText, content: ContentItem[], space: stri
       matchedByLabel.set(ref, keys[0]);
     } else if (keys.length > 1) {
       problems.push({ line: ref.line, severity: "warning", message: "“" + ref.written + "” in " + ref.where + " matches " + keys.length + " items (" + keys.join(", ") + "): write the key" });
-    } else if (!(space === "library" && ref.kind === "thing" && looksLikeKey(ref.written))) {
+    } else if (!(space === "library" && (ref.kind === "thing" || ref.kind === "hook") && looksLikeKey(ref.written))) {
       // A key-like name in a library rule may belong to a sandbox not loaded yet: no warning.
       problems.push({ line: ref.line, severity: "warning", message: "missing reference " + ref.written + " in " + ref.where });
     }

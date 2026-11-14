@@ -11,6 +11,8 @@
 import type {
   ContentItem,
   EventRecord,
+  Expression,
+  Hook,
   Link,
   Manifest,
   ManifestContext,
@@ -30,6 +32,21 @@ export interface WorldEventView extends EventRecord {
   recordedIn: { from: "content" } | { from: "log"; entryId: string };
 }
 
+// A hook as the world reads it: a stored hook object, or one made from a rule's inline trigger
+// (owner, 15 Nov: a shorthand trigger makes its hook automatically, so it is always visible).
+export interface HookView {
+  key: string;
+  label: string;
+  space: string;
+  condition: Expression;
+  fromRule: string | null; // the rule whose inline trigger made it; null for a stored hook
+}
+
+// The key of the hook made from a rule's inline trigger.
+export function autoHookKey(ruleKey: string): string {
+  return ruleKey + "~trigger";
+}
+
 export interface World {
   things: Map<string, Thing>;
   units: Map<string, Unit>;
@@ -41,6 +58,7 @@ export interface World {
   manifests: Map<string, Manifest>;
   sandboxes: Map<string, Sandbox>;
   contexts: Map<string, ManifestContext>;
+  hooks: Map<string, HookView>;
   fixes: AcceptedEntry[]; // accepted GM-fix entries (package switches, orders, pins), in log order
 }
 
@@ -60,12 +78,31 @@ export function buildWorld(content: ContentItem[], entries: AcceptedEntry[]): Wo
     manifests: new Map(),
     sandboxes: new Map(),
     contexts: new Map(),
+    hooks: new Map(),
     fixes: [],
   };
   const sorted = [...content].sort((a, b) => a.key.localeCompare(b.key));
   for (const item of sorted) addContentItem(world, item);
   for (const entry of entries) addLogEntry(world, entry);
+  addAutoHooks(world);
   return world;
+}
+
+// A rule whose trigger isn't a single hook reference has its condition written inline: that
+// condition is a hook too, made here so it shows like any other. Stored hooks win on a clash.
+function addAutoHooks(world: World): void {
+  for (const rule of world.rules) {
+    if (!rule.trigger || rule.trigger.node === "hook") continue;
+    const key = autoHookKey(rule.key);
+    if (world.hooks.has(key)) continue;
+    world.hooks.set(key, { key, label: "When “" + rule.label + "” is on", space: rule.space, condition: rule.trigger, fromRule: rule.key });
+  }
+}
+
+function addHook(world: World, hook: Hook): void {
+  // A sandbox's own hook wins over one with the same key elsewhere.
+  if (world.hooks.get(hook.key)?.space !== "library" && world.hooks.has(hook.key)) return;
+  world.hooks.set(hook.key, { key: hook.key, label: hook.label, space: hook.space, condition: hook.condition, fromRule: null });
 }
 
 function addContentItem(world: World, item: ContentItem): void {
@@ -110,6 +147,9 @@ function addContentItem(world: World, item: ContentItem): void {
     case "context":
       world.contexts.set(item.key, item);
       break;
+    case "hook":
+      addHook(world, item);
+      break;
   }
 }
 
@@ -124,9 +164,9 @@ function addLogEntry(world: World, entry: AcceptedEntry): void {
 
 // --- Reading things --------------------------------------------------------
 
-// The label of a thing or unit, or the key if it isn't known.
+// The label of a thing, unit or hook, or the key if it isn't known.
 export function labelOf(world: World, key: string): string {
-  return world.things.get(key)?.label ?? world.units.get(key)?.label ?? key;
+  return world.things.get(key)?.label ?? world.units.get(key)?.label ?? world.hooks.get(key)?.label ?? key;
 }
 
 // The kinds of a thing. A unit always has the kind "unit".

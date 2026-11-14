@@ -28,6 +28,8 @@ export function evaluate(world: World, expression: Expression, protagonist: stri
       return evaluateInForce(world, expression.what, expression.roles, date);
     case "named_scope":
       return evaluateNamedScope(world, expression.key, protagonist, date);
+    case "hook":
+      return evaluateHook(world, expression.key, protagonist, date);
     case "all":
       return combineAll(expression.of.map((part) => evaluate(world, part, protagonist, date)));
     case "any":
@@ -101,6 +103,22 @@ function evaluateNamedScope(world: World, key: string, protagonist: string, date
     inputs: [],
     children: [inner],
     routes: [], // a named scope names no thing for depth: rules-overlay.md §8
+  };
+}
+
+// --- hook ----------------------------------------------------------------------------------
+
+// rules-overlay §5.1: a hook is true / false / can't tell; a missing hook is can't tell.
+function evaluateHook(world: World, key: string, protagonist: string, date: number): ConditionTrace {
+  const hook = world.hooks.get(key);
+  if (!hook) return emptyTrace("hook " + key, "cant_tell", ["unknown hook: " + key]);
+  const inner = evaluate(world, hook.condition, protagonist, date);
+  return {
+    text: "hook “" + hook.label + "”" + (hook.fromRule ? " (made from the rule's own trigger)" : ""),
+    result: inner.result,
+    inputs: [],
+    children: [inner],
+    routes: [],
   };
 }
 

@@ -79,7 +79,7 @@ export function App({ data }: { data: AppData }) {
         {browsing && current !== null && currentItem?.class !== "unit" && (
           <ItemScreen key={current} data={data} snapshot={snapshot} itemRef={current} onOpenItem={openItem} onBack={back} onEditText={editAsText} />
         )}
-        {tab === "world" && current === null && <WorldScreen snapshot={snapshot} onOpenItem={openItem} onImport={() => goTo("import")} />}
+        {tab === "world" && current === null && <WorldScreen data={data} snapshot={snapshot} onOpenItem={openItem} onImport={() => goTo("import")} onEditText={editAsText} onChanged={refresh} />}
         {tab === "sandbox" && current === null && <SandboxScreen data={data} snapshot={snapshot} onOpenItem={openItem} onEditText={editAsText} onChanged={refresh} />}
         {tab === "library" && current === null && <LibraryScreen snapshot={snapshot} onOpenItem={openItem} />}
         {tab === "import" && (

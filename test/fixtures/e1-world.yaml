@@ -21,6 +21,11 @@ things:
   - [Wissenland treasury, wissenland_treasury, [organisation]]
   - [Handgunners' commission, handgunner_commission, [commission]]
 
+hooks:
+  # A world item: what the game rules watch. Each game binds its own rule to it.
+  - hook: [Treasury not paying, treasury_not_paying]
+    when: in_force(wages_withheld, withholder = wissenland_treasury)
+
 links:
   # [from, kind, to, start, end]
   - [nuln, in, wissenland, 2000]

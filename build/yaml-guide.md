@@ -15,22 +15,26 @@ Where something lives decides which file it goes in:
 | File starts with | It is | Holds | Deploys to |
 |---|---|---|---|
 | `manifest: [label, key]` | a **game** (one per edition) | its statline, bag order, and **core** packages | the **library** |
-| `package: [label, key]` | a **rules package** | rules and named scopes, for one game | the **library**, usable by any sandbox; or, with `sandbox: key` under the header, **local to that sandbox** |
-| `sandbox: [label, key]` | a **sandbox** (one world) | its category order, the games played in it (contexts), things, links, units, events, and log entries | that sandbox |
+| `package: [label, key]` | a **rules package** | rules and named scopes, for one game | the **library**, usable by any sandbox (local packages: see §3) |
+| `sandbox: [label, key]` | a **sandbox** (one world) | its category order, the games played in it (contexts), things, links, units, events, **hooks**, and log entries | that sandbox |
 
 How they fit together:
 
 ```
 library:   game (manifest) ── its core packages, always applied
            rules packages:  books, FAQs, house rules, campaign packages
-sandbox:   the world (things, links, events, log) + its category order
+sandbox:   the world (things, links, events, hooks, log) + its category order
            └─ context (one per game played here): the game + the books, FAQs, house rules
               and campaign packages switched on, in order
+
+event ──watched by──> hook ──triggers──> rule
+(world)               (world)            (a game's package; or no trigger: always on)
 pick-up game: a game + the packages chosen, no world at all
 ```
 
 - **A package is not a scope.** A rule is in play for a unit only if its package is **switched on in the unit's context** (or is the game's core). Then the rule's scope decides which units it lands on.
 - **A library package is world-agnostic.** Its rules name things by key (`nuln`); each sandbox reads them in its own world, so two sandboxes can each have their own Nuln.
+- **Events, hooks and rules are separate.** An event stands on its own ("wages withheld", from 2524, the treasury as withholder). A hook is a world item that watches events or other world facts ("treasury not paying"). A game's rule triggers on a hook by its key, or has no trigger and is always on. Each game binds its own rule to the same hook.
 - **The category order belongs to the world**, not the game: it says how places, organisations and titles stack. A pick-up game has no world, so it has no category order.
 - Something in the wrong kind of file (world content in a package, rules in a sandbox, a category order in a manifest) is reported on that line and left out.
 
@@ -117,6 +121,7 @@ contexts:
 things:  [...]      # §4.1
 links:   [...]      # §4.2
 units:   [...]      # §4.3
+hooks:   [...]      # §4.4
 events:  [...]      # world history (§7)
 log:     [...]      # entries appended to this sandbox's log on deploy (§7)
 ```
@@ -171,6 +176,18 @@ units:
 
 ---
 
+### 4.4 Hooks
+
+```yaml
+hooks:
+  - hook: [Treasury not paying, treasury_not_paying]          # (label, key)
+    when: in_force(wages_withheld, withholder = wissenland_treasury)
+```
+
+- A **hook** is a world item: a plain-words label and a condition (§6) saying when it's true. It watches events (`in_force`), links (`reaches`), or other hooks (`hook(key)`, or a bare key).
+- Rules in any game's package trigger on it by key: `trigger: treasury_not_paying`. A label works too (`trigger: Treasury not paying`) and the key is written back.
+- On the **World** tab, **Hooks** shows each hook true or false at a read date, the events that make it so, and the rules on it. A hook that follows links from a unit (`reaches`) shows "depends on the unit": each unit's card has its own answer.
+
 ## 5. Rules
 
 ```yaml
@@ -178,7 +195,7 @@ rules:
   - rule: [Unpaid wages, unpaid_wages]
     effect: [Ld, -1]
     scope: commissioned_by_the_treasury
-    trigger: in_force(wages_withheld, withholder = wissenland_treasury)
+    trigger: treasury_not_paying        # a hook in the sandbox
     nature: environment
     category: title
 ```
@@ -188,7 +205,7 @@ rules:
 | `rule` | yes | (label, key) |
 | `effect` | yes | (stat, edit, target point): see below |
 | `scope` | yes | **which units**: a condition (§6) |
-| `trigger` | no | **when it's on**: a condition. No trigger = on whenever the scope matches |
+| `trigger` | no | **when it's on**: a **hook**, by key or label. No trigger = on whenever the scope matches. *Shorthand:* a condition written inline (`trigger: in_force(…)`) works too; it becomes a hook automatically ("When “Unpaid wages” is on", marked "made from a rule's trigger" under World → Hooks), with a button to make it a proper world hook |
 | `nature` | yes | `origin`: read **as of the unit's raising**, in the origin step. `environment`: read **at the date you're viewing**, in the stationed step |
 | `category` | no (warned) | where it runs in the step's category order (`place`, `organisation`, `title` by default). Others run last |
 | `layer` | no | overrides the package's source layer |
@@ -247,6 +264,19 @@ scopes:
 
 ## 7. Events and the log
 
+**Recording an event in play:** on the **World** tab, **Events → Record an event**. Four boxes:
+
+| Box | What to put |
+|---|---|
+| **Name** | what happened, in words: "Wages withheld" |
+| **From / Until** | years. From counts, until doesn't (2524–2526 is on in 2524 and 2525). Until blank: still going |
+| **Involved** | things from this world, each with its part if it matters ("Wissenland treasury" as "withholder"). A hook can ask who's involved and how |
+| **Type** (optional) | what sort of event it is ("wages withheld"), so a hook can watch for any event of that sort. Left blank, the name is the type |
+
+The event goes into the sandbox's **log**: a dated entry, never edited. **Correct** (on World) withdraws it and records the fixed one; **Withdraw** says it never happened. The **Log** tab is the record of everything (events, GM fixes, corrections, withdrawals), in order; nothing is made there.
+
+**Writing events in a sandbox file:**
+
 ```yaml
 events:                       # in a sandbox file: world history
   - event: [Spinach grows in Averland, averland_spinach]
@@ -261,7 +291,7 @@ log:                          # in a sandbox file: appended to its log on deploy
     period: [2524]
 ```
 
-A sandbox file can hold only a `log:` section (with the sandbox's header) to add entries. Log entries can be **withdrawn** later; the original stays in the audit view. An event already logged (same key) isn't added twice.
+In a file, `kind:` is the event's type and `roles:` who's involved and how. A sandbox file can hold only a `log:` section (with the sandbox's header) to add entries. An event already logged (same key) isn't added twice.
 
 ---
 

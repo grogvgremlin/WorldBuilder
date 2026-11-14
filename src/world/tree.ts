@@ -67,18 +67,21 @@ function walk(world: World, start: string, date: number, direction: "out" | "in"
 function names(expression: Expression | null, key: string): boolean {
   if (!expression) return false;
   const refs = referencedKeys(expression);
-  return refs.things.includes(key) || refs.scopes.includes(key);
+  return refs.things.includes(key) || refs.scopes.includes(key) || refs.hooks.includes(key);
 }
 
 function rulesNaming(world: World, key: string): { rule: Rule; via: string }[] {
   const scopesNamingIt = [...world.scopes.values()].filter((s) => names(s.query, key));
+  const hooksNamingIt = [...world.hooks.values()].filter((h) => !h.fromRule && names(h.condition, key));
   const result: { rule: Rule; via: string }[] = [];
   for (const rule of world.rules) {
     if (names(rule.scope, key)) result.push({ rule, via: "its scope" });
     else if (names(rule.trigger, key)) result.push({ rule, via: "its trigger" });
     else {
-      const through = scopesNamingIt.find((s) => names(rule.scope, s.key) || names(rule.trigger, s.key));
-      if (through) result.push({ rule, via: "named scope “" + through.label + "”" });
+      const hook = hooksNamingIt.find((h) => names(rule.trigger, h.key));
+      const scope = scopesNamingIt.find((s) => names(rule.scope, s.key) || names(rule.trigger, s.key));
+      if (hook) result.push({ rule, via: "hook “" + hook.label + "”" });
+      else if (scope) result.push({ rule, via: "named scope “" + scope.label + "”" });
     }
   }
   return result;

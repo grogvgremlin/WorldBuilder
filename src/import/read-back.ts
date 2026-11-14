@@ -51,6 +51,8 @@ export function readBackCondition(expression: Expression, labelOf: LabelOf, phra
     }
     case "named_scope":
       return (phrasing === "clause" ? "the unit is" : "are") + " in the named scope “" + labelOf(expression.key) + "”";
+    case "hook":
+      return "the hook “" + labelOf(expression.key) + "” is true";
     case "all":
       return expression.of.map(again).join(", and ");
     case "any":
@@ -64,7 +66,9 @@ export function readBackCondition(expression: Expression, labelOf: LabelOf, phra
 export function readBackRule(rule: Rule, labelOf: LabelOf): string[] {
   const lines = ["Effect: " + readBackEdit(rule.effect) + "."];
   lines.push("Applies to units that " + readBackCondition(rule.scope, labelOf, "after units that") + ".");
-  lines.push(rule.trigger ? "Only while " + readBackCondition(rule.trigger, labelOf, "clause") + "." : "No trigger: on whenever the scope matches.");
+  if (!rule.trigger) lines.push("No trigger: on whenever the scope matches.");
+  else if (rule.trigger.node === "hook") lines.push("Triggered by the hook “" + labelOf(rule.trigger.key) + "”.");
+  else lines.push("Only while " + readBackCondition(rule.trigger, labelOf, "clause") + " (written inline: shown as a hook made from this rule).");
   lines.push(
     rule.nature === "origin"
       ? "Origin rule: reads the world as of each unit's raising date, in the origin step."

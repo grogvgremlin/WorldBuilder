@@ -49,8 +49,10 @@ describe("E1 Handgunners' Ld", () => {
     expect(wages.scope.children[0].inputs).toEqual([
       "route: Nuln Handgunners —serves→ Handgunners' commission —paid by→ Wissenland treasury",
     ]);
+    // The rule triggers on the world's hook; the hook reads the event (owner, 15 Nov).
     expect(wages.trigger?.result).toBe("true");
-    expect(wages.trigger?.inputs[0]).toMatch(/^Wages withheld in force since 2524 \(log entry e-\d+\)$/);
+    expect(wages.trigger?.text).toBe("hook “Treasury not paying”");
+    expect(wages.trigger?.children[0].inputs[0]).toMatch(/^Wages withheld in force since 2524 \(log entry e-\d+\)$/);
     expect(wages.readDateNote).toBe("now, 2525");
     expect(wages.decidedBy).toBe("step");
   });

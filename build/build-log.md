@@ -14,6 +14,18 @@ Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up aft
 | **B** Army list and roster builder | Waiting on army data. Also in Part B: FAQs tied to what they correct (owner decision 5 above). **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
 
+### Owner decisions, 15 Nov: events, hooks, rules, and the log screen
+
+**To carry back to the design project** (changes slice 1 brief §4.1's "hook objects as a general mechanism stay out").
+
+1. **An event stands alone.** A **hook** is a world item that watches events (or other world facts). A **rule** triggers on a hook, or has no trigger (always on). Each game binds its own rule to the same hook (`rules-overlay.md` §5; decision 4 of 14 Nov, settled in the design project).
+2. **Hook objects are built now**, as world items in a sandbox (`hooks:` in a sandbox file: a label and a `when:` condition). A rule's `trigger:` names a hook by key or label.
+3. **The inline trigger is a shorthand that makes its hook automatically, so it is always visible** ("When “Unpaid wages” is on", marked "made from a rule's trigger" under World → Hooks, with **Make it a world hook**). The derivation always shows a hook.
+4. **The screen keeps the three apart:** events are recorded on **World** (name, when, things involved with their part, optional type: no rule vocabulary); hooks show on World with their state at a read date and the rules on them; the **Log** tab is the record only (events, GM fixes, corrections, withdrawals), nothing made there.
+5. Templates that make a hook from an event and a rule from a hook in one go (`rules-overlay.md` §5.2) stay later.
+
+**Still to build from decision 4 (settled 14 Nov):** a sandbox-local package should hold world content only; a game's campaign rules should be local to a **context** (or in the library). The build still lets a sandbox-local package hold rules (marked "under review" in the guide). Next change.
+
 ### Owner decisions, 14 Nov: how the containers fit (supersede parts of brief §1.2 and §2.1)
 
 From the owner's checks of Part A on the phone and desktop. **To carry back to the design project.**
@@ -68,6 +80,10 @@ From the owner's checks of Part A on the phone and desktop. **To carry back to t
 | A draft is rebuilt from its own text against the current state when deployed, and when the Import tab opens | Its warnings, new / edit statuses and logged-event check are never stale. |
 | IndexedDB version 3 (same stores as 2, items reshaped in place); whole copy version 3 | The owner's Part A data comes forward on first open. |
 | A package local to a sandbox lives in that sandbox's space; it wins over a library package with the same key | Keys are unique within a space; the sandbox's own rules come first. |
+| A hook made from an inline trigger is **derived** when the world is built (key `rule~trigger`), not stored | Library rules serve many sandboxes, so the hook can't belong to one; nothing to keep in step, export or migrate. "Make it a world hook" writes a real one into the sandbox. |
+| In a trigger or a hook's condition, a bare key is a hook; in a scope, a named scope; `hook(key)` works anywhere; a field that's only a name (no brackets) is one name, spaces and all | Triggers read naturally (`trigger: Treasury not paying`); YAML drops quotes, so they can't be required. |
+| A hook that follows links from a unit (`reaches`) shows "depends on the unit" on World, and its answer on each unit's card | It has no single answer for the world. |
+| A recorded event with no type gets its name as its type; roles with no part are "involved" | The form stays four boxes; hooks can still match by event or by type. |
 | A thing's tree walks links on at the read date, each thing once by its shortest route, at most 8 hops | Readable, and stops runaway walks in big worlds. |
 | `src/ui/tokens.css` holds every colour, type size, spacing and radius; two columns above 760px | Brief §1.6: the look iterates; world views desktop-first, lists phone-first. |
 

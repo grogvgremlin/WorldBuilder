@@ -6,6 +6,8 @@
 //   reaches     - does the protagonist reach `target` along the route pattern `via`?
 //   in_force    - is an event of this kind (or this event thing) in force, with these roles?
 //   named_scope - a saved query, referred to by key
+//   hook        - a hook object (a world item: a label plus a condition), referred to by key
+//                 (rules-overlay §5; owner, 14 Nov: rules trigger on world hooks)
 //   all / any / not - combine the above
 
 import { z } from "zod";
@@ -29,6 +31,7 @@ export type Expression =
   | { node: "reaches"; target: ReachTarget; via: RouteStep[]; when: "as_of" | "ever" }
   | { node: "in_force"; what: string; roles: Record<string, string> }
   | { node: "named_scope"; key: string }
+  | { node: "hook"; key: string }
   | { node: "all"; of: Expression[] }
   | { node: "any"; of: Expression[] }
   | { node: "not"; of: Expression };
@@ -47,6 +50,7 @@ export const Expression: z.ZodType<Expression> = z.lazy(() =>
       roles: z.record(z.string(), z.string()),
     }),
     z.object({ node: z.literal("named_scope"), key: z.string() }),
+    z.object({ node: z.literal("hook"), key: z.string() }),
     z.object({ node: z.literal("all"), of: z.array(Expression) }),
     z.object({ node: z.literal("any"), of: z.array(Expression) }),
     z.object({ node: z.literal("not"), of: Expression }),

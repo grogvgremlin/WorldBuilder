@@ -519,6 +519,48 @@
                 "properties": {
                   "class": {
                     "type": "string",
+                    "const": "hook"
+                  },
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "space": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "package": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "condition": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "class",
+                  "key",
+                  "label",
+                  "space",
+                  "package",
+                  "condition"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "class": {
+                    "type": "string",
                     "const": "package"
                   },
                   "key": {
@@ -1104,6 +1146,23 @@
             "node": {
               "type": "string",
               "const": "named_scope"
+            },
+            "key": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "node",
+            "key"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "const": "hook"
             },
             "key": {
               "type": "string"

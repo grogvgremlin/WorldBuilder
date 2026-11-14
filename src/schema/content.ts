@@ -130,6 +130,18 @@ export const NamedScope = z.object({
 });
 export type NamedScope = z.infer<typeof NamedScope>;
 
+// A hook object: a world item (lives in a sandbox). A plain-words label ("treasury not
+// paying") and a condition reading the world. Game rules trigger on it by key; each game binds
+// its own rule to the same hook. Design: rules-overlay §5 (hook objects), §5.1 (true / false /
+// can't tell); owner decision 4 and 15 Nov (build log): hooks are world items, rules bind to
+// them; a rule's inline trigger makes a hook automatically, so it is always visible.
+export const Hook = z.object({
+  class: z.literal("hook"),
+  ...itemBase,
+  condition: Expression,
+});
+export type Hook = z.infer<typeof Hook>;
+
 export const Package = z.object({
   class: z.literal("package"),
   ...itemBase,
@@ -209,6 +221,7 @@ export const ContentItem = z.discriminatedUnion("class", [
   Unit,
   Rule,
   NamedScope,
+  Hook,
   Package,
   Manifest,
   Sandbox,
