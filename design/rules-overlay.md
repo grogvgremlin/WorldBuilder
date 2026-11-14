@@ -1,6 +1,6 @@
 # The game-rules overlay (architecture v2)
 
-_Session 13 (6–7 Nov 2026), opened from `handover-session-13.md`; **session 14 (8 Nov 2026)**: graded effects with declared reads (§5.3), the test view suggesting links (§9), standing moved to `world-structure.md` §6.1 (§15.6); **closed for the first prototype**. How a game system's rules read the v2 world: the world supplies the guest list (`foundations/reach.md`) and world values (`foundations/order.md`); the overlay turns game rules into effects on a system's protagonists. v1's cascade (`core/resolver.md` §5) is the guide; what it supersedes is listed in `foundations/v2-reconciliation.md`._
+_Session 13 (6–7 Nov 2026), opened from `handover-session-13.md`; **session 14 (8 Nov 2026)**: graded effects with declared reads (§5.3), the test view suggesting links (§9), standing moved to `world-structure.md` §6.1 (§15.6); **closed for the first prototype**. **Build feedback (12–14 Nov 2026, slices 0–1)** folded into §7, §8 and §12, marked *(build)*. How a game system's rules read the v2 world: the world supplies the guest list (`foundations/reach.md`) and world values (`foundations/order.md`); the overlay turns game rules into effects on a system's protagonists. v1's cascade (`core/resolver.md` §5) is the guide; what it supersedes is listed in `foundations/v2-reconciliation.md`._
 
 Markers: **AGREED** · **AGREED (tentative)** (try in the prototype) · **PROPOSED** · **OPEN**.
 
@@ -165,6 +165,7 @@ Where a **GM notice** stands in the queue: **new** · **seen** · **snoozed** (u
 - Case: the Grenzstadt Spearmen, raised 2520 at Grenzstadt (then *in* Averland), keep the spinach +1 S after Grenzstadt passes to Stirland (2523) and after a blight ends the spinach (2524).
 - **Raising date**: a unit is stamped with the **current timeline point** when created; **overridable** on the unit or roster.
 - **Plain list-building** is the same structure with a **single snapshot of the world on a single date**, dates hidden.
+- **Read before the raising date — AGREED (owner, 10 Nov, build)**: a unit read before it was raised reads nothing from the world. The card says "Not raised until 2520" and shows the printed profile, greyed, with no rules.
 
 **AGREED (user): consequences**
 - **Copies keep the original's date** through identity links; option to **re-stamp**.
@@ -186,7 +187,13 @@ Case (origin, both in-line): **Wissenland discipline** `Ld = 7 @inline` (scope: 
 2. **Source layer** (book → FAQ → house rules → campaign).
 3. **Category order** of the step (§12).
 4. **Depth on a shared chain**: the **nearer applies later** (Nuln before Wissenland → 8). Matches nearest wins (`order.md` §7).
-5. **Otherwise a bag by kind** (add before multiply), with a **clash notice** where the order would change the result; GM fixes by pin or in bulk (§12).
+5. **Otherwise a bag by kind**, with a **clash notice** where the order would change the result; GM fixes by pin or in bulk (§12).
+
+**AGREED (owner, 12 Nov, build)**
+- **Order inside a bag: set → add → multiply → cap → floor** (`core/resolver.md` §5.3 placed add before multiply but not the set). **Configurable**: the default belongs to the **game** (the manifest, §12 *(build)*); a **pin** reorders one pair.
+- **A decided order raises no clash notice.** Only step 5 (nothing decided it) raises one. When steps 1–4 or a pin decide a non-commuting pair, the derivation says **what decided it and what reversing would give** ("organisation after place, by category order; reversed it would be 9"). Refines `core/resolver.md` §5.6 (1).
+
+**OPEN (build questions, slice 0)**: Q1 target points across steps (all statline edits over the whole path first, as built, or statline → in-line → end within each step); Q4 depth when only some rules share a chain (as built: depth orders a group only if all share one chain; else the whole group goes to the bag); Q6 whether a named scope that is a single `reaches` to one thing carries that thing's depth. Built behaviour stands until answered (`session-22-notes.md`).
 
 **Depth**
 - For the fold, **nearer = fewer hops up the protagonist's own route** (village 0, Averheim 1, Averland 2).
@@ -257,11 +264,15 @@ Case (origin, both in-line): **Wissenland discipline** `Ld = 7 @inline` (scope: 
 
 | Step | Category order (default) |
 |---|---|
-| **Origin** | place → organisation / title |
-| **Stationed** | place → organisation / title |
+| **Origin** | place → organisation → title |
+| **Stationed** | place → organisation → title |
 | **Battle location** | scenario → place / site (terrain with the site) |
 
 - **All configurable**: shipped in the default setting package, editable per campaign or context. An edit is the **bulk GM fix**; dated, shown in the derivation. **Pins** remain for a single pair.
+- **Three ranks — AGREED (owner, 12 Nov, build)**: place → organisation → **title** (an organisation grants a title), not organisation and title sharing a rank. **Configurable at macro and micro level**: the order per step is the macro fix; a pin is the micro fix.
+- **Where the order lives — AGREED (owner, 14 Nov, build)**: the category order **belongs to the world, not the game**. Origin and stationed rules only exist where a game runs in a world; a pick-up game has neither. It is set on the **sandbox**; a **manifest context** may override it for its game. The **bag order** (§8 *(build)*) belongs to the game: the manifest.
+- **GM fixes are dated log entries** in the sandbox's log, withdrawable like any entry *(build, as built)*: a **package switch**, a **category-order edit** (per context and step) and a **pin** (one pair, on one value, for one unit or every unit). They are out-of-fiction fixes: they apply at every read date; the latest accepted one wins. Shown in the derivation ("order organisation → place → title, set for this context by Ann, 12 Nov"; "pinned: Nuln civic pride before Gunnery School").
+- **OPEN (build questions, slice 1)**: Q13 whether a package switch can start at an in-world date; Q14 pins between rules in different steps or target points (ignored as built). Leans in `session-22-notes.md`.
 - Sits as **step 3** of §8.
 - Worked case (Handgunners, base Ld 7): origin — Nuln civic pride (+1, place) → 8, then the Gunnery School (`= 8 @inline`, organisation) → 8; stationed — unpaid wages (−1, title) → **7**.
 
