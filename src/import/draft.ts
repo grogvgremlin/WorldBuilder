@@ -17,29 +17,36 @@ import { DEFAULT_STAT_ORDER, readText, slugify, type HeaderNeedingKey, type Pars
 export interface Existing {
   content: ContentItem[]; // every space
   loggedEventKeys: Record<string, string[]>; // sandbox -> event keys already in its log
+  pending?: ContentItem[]; // items in other drafts waiting: references to them aren't missing
 }
 
 export function buildDraft(text: string, fileLabel: string, existing: Existing, deps: { newId(): string; now(): string }): DraftBatch {
   const parsed = readText(text, fileLabel, statOrderFinder(existing.content));
   const problems: Problem[] = [...parsed.problems];
 
-  const headerKey = parsed.headerKey ?? matchContainer(parsed, existing.content) ?? slugify(parsed.headerLabel);
-  const space = parsed.fileKind === "package" ? "library" : headerKey;
-  const target: DraftTarget = parsed.fileKind === "package" ? { kind: "library" } : { kind: "sandbox", sandbox: headerKey };
-
+  const space = spaceOf(parsed, existing.content);
   assignKeys(parsed, existing.content, space, problems);
+  // A manifest file's one item is its header; a package or sandbox has a container item.
+  const headerKey =
+    parsed.fileKind === "manifest" && parsed.items[0]
+      ? parsed.items[0].item.key
+      : (parsed.headerKey ?? matchContainer(parsed, existing.content) ?? slugify(parsed.headerLabel));
+  const finalSpace = parsed.fileKind === "sandbox" ? headerKey : space;
+  const target: DraftTarget = finalSpace === "library" ? { kind: "library" } : { kind: "sandbox", sandbox: finalSpace };
+
   for (const { item } of parsed.items) {
-    item.space = space;
+    item.space = finalSpace;
     item.package = headerKey;
   }
   resolveUnitLinkPlaceholders(parsed);
-  const labelMatches = matchReferences(parsed, existing.content, space, problems);
+  const others = [...existing.content, ...(existing.pending ?? [])];
+  const labelMatches = matchReferences(parsed, others, finalSpace, problems);
   setLinkKeys(parsed);
   checkDuplicateKeys(parsed, problems);
 
-  const container = containerItem(parsed, existing.content, space, headerKey);
-  const allItems = [{ line: 1, item: container }, ...parsed.items];
-  const deployed = new Map(existing.content.filter((i) => i.space === space).map((i) => [i.key, i]));
+  const deployed = new Map(existing.content.filter((i) => i.space === finalSpace).map((i) => [i.key, i]));
+  warnAboutMoves(parsed, deployed, existing.content, problems);
+  const allItems = parsed.fileKind === "manifest" ? parsed.items : [{ line: 1, item: containerItem(parsed, existing.content, finalSpace, headerKey) }, ...parsed.items];
 
   const logged = new Set(existing.loggedEventKeys[headerKey] ?? []);
   const logItems = parsed.logEvents
@@ -63,6 +70,14 @@ export function buildDraft(text: string, fileLabel: string, existing: Existing, 
   };
 }
 
+// Rebuilds a draft from its own text against what's deployed now (and the other drafts waiting),
+// keeping its ID. Run before deploying: a draft made before others were deployed would otherwise
+// carry stale warnings, stale new / edit statuses, or log an event that's already logged.
+export function refreshDraft(draft: DraftBatch, existing: Existing): DraftBatch {
+  const fresh = buildDraft(draft.sourceText, draft.label, existing, { newId: () => draft.id, now: () => draft.createdTime });
+  return { ...fresh, label: draft.label };
+}
+
 // --- Stat order for profiles written as lists ------------------------------------------------
 
 function statOrderFinder(content: ContentItem[]) {
@@ -76,9 +91,32 @@ function statOrderFinder(content: ContentItem[]) {
 
 // --- Keys ------------------------------------------------------------------------------------
 
+// Where the file's items will live: the library, or a sandbox (its world, or a package local
+// to it). A sandbox file's key isn't known until its header is matched, so that comes later.
+function spaceOf(parsed: ParsedText, content: ContentItem[]): string {
+  if (parsed.fileKind === "manifest") return "library";
+  if (parsed.fileKind === "package") return parsed.homeSandbox ?? "library";
+  return parsed.headerKey ?? matchContainer(parsed, content) ?? slugify(parsed.headerLabel);
+}
+
+// text-format §3: re-importing an item edits it. Say so loudly when that moves it out of the
+// package it was in (reusing a manifest's or rule's key by accident, for instance).
+function warnAboutMoves(parsed: ParsedText, deployed: Map<string, ContentItem>, content: ContentItem[], problems: Problem[]): void {
+  for (const { line, item } of parsed.items) {
+    const before = deployed.get(item.key);
+    if (!before || before.package === null || before.package === item.package || before.class === "link") continue;
+    const from = content.find((i) => i.key === before.package && i.space === before.space && (i.class === "package" || i.class === "sandbox"));
+    problems.push({
+      line,
+      severity: "warning",
+      message: "this replaces the " + item.class + " " + item.key + " in " + (from?.label ?? before.package) + ", moving it here: use a new key to add a separate one",
+    });
+  }
+}
+
 // The package or sandbox written without a key: match it by label once.
 function matchContainer(parsed: ParsedText, content: ContentItem[]): string | null {
-  const className = parsed.fileKind === "package" ? "package" : "sandbox";
+  const className = parsed.fileKind === "sandbox" ? "sandbox" : "package";
   const matches = content.filter((i) => i.class === className && i.label === parsed.headerLabel);
   return matches.length === 1 ? matches[0].key : null;
 }
@@ -131,13 +169,14 @@ function pool(kind: RefSite["kind"], parsed: ParsedText, content: ContentItem[],
   const all = [...content.filter((i) => !(i.space === space && parsed.items.some((p) => p.item.key === i.key))), ...parsed.items.map((p) => p.item)];
   switch (kind) {
     case "thing":
-      // A sandbox file names its own world. A library package is world-agnostic: it may name
-      // things in any sandbox.
-      return all.filter((i) => (i.class === "thing" || i.class === "unit") && (parsed.fileKind === "package" ? i.space !== "library" : i.space === space));
+      // A sandbox file, or a package local to a sandbox, names its own world. A library package
+      // is world-agnostic: it may name things in any sandbox.
+      return all.filter((i) => (i.class === "thing" || i.class === "unit") && (space === "library" ? i.space !== "library" : i.space === space));
     case "scope":
       return all.filter((i) => i.class === "scope" && (i.space === "library" || i.space === space));
     case "package":
-      return all.filter((i) => i.class === "package" && i.space === "library");
+      // The library's packages, and packages local to this sandbox.
+      return all.filter((i) => i.class === "package" && (i.space === "library" || i.space === space));
     case "manifest":
       return all.filter((i) => i.class === "manifest" && i.space === "library");
   }
@@ -157,7 +196,7 @@ function matchReferences(parsed: ParsedText, content: ContentItem[], space: stri
       matchedByLabel.set(ref, keys[0]);
     } else if (keys.length > 1) {
       problems.push({ line: ref.line, severity: "warning", message: "“" + ref.written + "” in " + ref.where + " matches " + keys.length + " items (" + keys.join(", ") + "): write the key" });
-    } else if (!(parsed.fileKind === "package" && ref.kind === "thing" && looksLikeKey(ref.written))) {
+    } else if (!(space === "library" && ref.kind === "thing" && looksLikeKey(ref.written))) {
       // A key-like name in a library rule may belong to a sandbox not loaded yet: no warning.
       problems.push({ line: ref.line, severity: "warning", message: "missing reference " + ref.written + " in " + ref.where });
     }
@@ -215,12 +254,12 @@ function checkDuplicateKeys(parsed: ParsedText, problems: Problem[]): void {
 function containerItem(parsed: ParsedText, content: ContentItem[], space: string, key: string): ContentItem {
   const imported = parsed.items.map(({ item }) => item.key);
   if (parsed.fileKind === "package") {
-    const deployed = content.find((i): i is Package => i.class === "package" && i.space === "library" && i.key === key);
+    const deployed = content.find((i): i is Package => i.class === "package" && i.space === space && i.key === key);
     return {
       class: "package",
       key,
       label: parsed.headerLabel,
-      space: "library",
+      space,
       package: key,
       sourceLayer: parsed.sourceLayer,
       edition: parsed.edition ?? deployed?.edition ?? null,
@@ -229,8 +268,17 @@ function containerItem(parsed: ParsedText, content: ContentItem[], space: string
       members: mergedMembers(deployed?.members ?? [], imported),
     };
   }
+  // A sandbox file that leaves out category_order (a log-only file, say) keeps the deployed one.
   const deployed = content.find((i): i is Sandbox => i.class === "sandbox" && i.space === space && i.key === key);
-  return { class: "sandbox", key, label: parsed.headerLabel, space, package: key, members: mergedMembers(deployed?.members ?? [], imported) };
+  return {
+    class: "sandbox",
+    key,
+    label: parsed.headerLabel,
+    space,
+    package: key,
+    categoryOrder: parsed.categoryOrder ?? deployed?.categoryOrder ?? null,
+    members: mergedMembers(deployed?.members ?? [], imported),
+  };
 }
 
 function mergedMembers(kept: string[], imported: string[]): string[] {

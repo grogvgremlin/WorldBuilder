@@ -23,10 +23,11 @@ interface Props {
   unitKey: string;
   onBack: () => void;
   onOpenItem: (ref: ItemRef) => void;
+  onEditText: (text: string, label: string) => void;
   onChanged: () => Promise<void>;
 }
 
-export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenItem, onChanged }: Props) {
+export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenItem, onEditText, onChanged }: Props) {
   const logDates = snapshot.log.map((e) => e.body.order.inWorldDate).filter((d): d is number => d !== null);
   const [readDate, setReadDate] = useState<number>(() => latestDate(snapshot.content, logDates));
   const [resolution, setResolution] = useState<UnitResolution | null>(null);
@@ -65,7 +66,7 @@ export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenIte
       {resolution.contextWarnings.map((w, i) => (
         <p key={i} className="problem-warning">{w}</p>
       ))}
-      {unitItem && <ItemText all={snapshot.all} item={unitItem} label="View unit text" />}
+      {unitItem && <ItemText all={snapshot.all} item={unitItem} label="View unit text" onEditText={onEditText} />}
 
       <ReadDate value={readDate} onChange={setReadDate} />
 
@@ -97,7 +98,7 @@ export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenIte
           canPin={resolution.context !== null}
           onPin={pinPair}
           onRemovePin={removePin}
-          onOpenRule={(key) => onOpenItem(itemRef({ space: "library", key }))}
+          onOpenRule={(key) => { const r = findByKey(snapshot.content, key, sandbox); if (r) onOpenItem(itemRef(r)); }}
         />
       )}
 
@@ -123,9 +124,9 @@ export function UnitScreen({ data, snapshot, sandbox, unitKey, onBack, onOpenIte
           {openRule === check.ruleKey && <WhyNotTree check={check} />}
           <div className="row">
             {findByKey(snapshot.content, check.ruleKey, sandbox) && (
-              <ItemText all={snapshot.all} item={findByKey(snapshot.content, check.ruleKey, sandbox)!} label="View rule" />
+              <ItemText all={snapshot.all} item={findByKey(snapshot.content, check.ruleKey, sandbox)!} label="View rule" onEditText={onEditText} />
             )}
-            <button className="link gap-top" onClick={() => onOpenItem(itemRef({ space: "library", key: check.ruleKey }))}>Open rule</button>
+            <button className="link gap-top" onClick={() => { const r = findByKey(snapshot.content, check.ruleKey, sandbox); if (r) onOpenItem(itemRef(r)); }}>Open rule</button>
           </div>
         </div>
       ))}

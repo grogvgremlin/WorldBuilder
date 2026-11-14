@@ -8,8 +8,9 @@
 // design/items-packages-and-library.md §4 (packages); build/slice-1-brief.md §2.1 (containers).
 //
 // Every item has a `key` (author-defined, never regenerated), a `class`, and a `space`: where it
-// lives. Space "library" holds packages not tied to any world (manifests, rules, army lists);
-// a sandbox's key is the space of that sandbox's world. Keys are unique within a space.
+// lives. Space "library" holds what isn't tied to any world (manifests, rules packages, army
+// lists); a sandbox's key is the space of that sandbox's world and of any packages local to it.
+// Keys are unique within a space.
 // Dates are plain numbers (years or day counts): no calendars.
 
 import { z } from "zod";
@@ -152,33 +153,54 @@ export const StepOrders = z.object({
 });
 export type StepOrders = z.infer<typeof StepOrders>;
 
-// One per edition, in the library. Holds what used to be constants in code.
+// The game: one per edition, in the library. Its statline and how it combines numbers, and its
+// core rules packages, always applied wherever the game is played (items-packages §4: the base
+// package can't be removed as a whole). Owner decision, 14 Nov: no category order here; that
+// belongs to the world (rules-overlay §12: "shipped in the default setting package").
 export const Manifest = z.object({
   class: z.literal("manifest"),
   ...itemBase,
   statOrder: z.array(z.string()), // the model statline, in card order
-  categoryOrder: StepOrders, // rules-overlay §12: the default run order per step
   bagOrder: z.array(EditKind), // resolver §5.3: kinds within a bag
+  core: z.array(z.string()), // the core rules packages, in order
 });
 export type Manifest = z.infer<typeof Manifest>;
 
-// A sandbox: one world with its own log. The item lives in its own space.
+// A sandbox: one world with its own log. The item lives in its own space. Its category order
+// says how places, organisations and titles stack for the world's rules (rules-overlay §12);
+// null = the built-in default.
 export const Sandbox = z.object({
   class: z.literal("sandbox"),
   ...itemBase,
+  categoryOrder: StepOrders.nullable(),
   members: z.array(z.string()), // world items deployed into it, in written order
 });
 export type Sandbox = z.infer<typeof Sandbox>;
 
-// A manifest context: one system's part of a sandbox. Which manifest it uses, and which
-// library packages are switched on in it, in order (the GM can switch them by log entry).
+// A manifest context: one game's part of a sandbox. The manifest brings its core; on top,
+// packages grouped as the owner set out (14 Nov), each list in order: books, FAQs, house
+// rules, campaign. The GM can switch any of them (not the core) by log entry. Its own
+// category order, if set, overrides the sandbox's for this game.
 export const ManifestContext = z.object({
   class: z.literal("context"),
   ...itemBase,
   manifest: z.string(),
-  packages: z.array(z.string()),
+  books: z.array(z.string()),
+  faqs: z.array(z.string()),
+  house: z.array(z.string()),
+  campaign: z.array(z.string()),
+  categoryOrder: StepOrders.nullable(),
 });
 export type ManifestContext = z.infer<typeof ManifestContext>;
+
+// The four groups a context lists, with the source layer each expects.
+export const CONTEXT_GROUPS = [
+  { field: "books", layer: "book" },
+  { field: "faqs", layer: "faq" },
+  { field: "house", layer: "house" },
+  { field: "campaign", layer: "campaign" },
+] as const;
+export type ContextGroup = (typeof CONTEXT_GROUPS)[number]["field"];
 
 export const ContentItem = z.discriminatedUnion("class", [
   Thing,

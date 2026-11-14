@@ -1,12 +1,7 @@
-# WFB 6th edition base package: the manifest (design/manifest.md §1–2, §9).
-# The stat order and the default orders live here as content, not in code
-# (slice 1 brief §1.2: category order has three ranks, configurable; bag order configurable).
+# WFB 6th edition core rules: the base package the manifest names as its core.
+# Always applied wherever WFB 6th is played (items-packages-and-library.md §4). Empty for now:
+# the edition-wide rules come with Part B.
 
-package: [WFB 6th edition base package, wfb6_base]
+package: [WFB 6th edition core rules, wfb6_base]
+edition: wfb6
 layer: book
-manifest: [Warhammer Fantasy Battles 6th edition, wfb6]
-stats: [M, WS, BS, S, T, W, I, A, Ld]
-category_order:
-  origin: [place, organisation, title]
-  stationed: [place, organisation, title]
-bag_order: [set, add, multiply, cap, floor]

@@ -4,7 +4,7 @@
 // several kinds shows under each); build/slice-1-brief.md §2.3 (things grouped by kind), §1.6
 // (world views desktop-first: two columns on a wide screen).
 
-import type { ContentItem, Rule, Thing } from "../../schema";
+import type { ContentItem, EventRecord, Rule, Thing } from "../../schema";
 import type { Snapshot } from "../app-data";
 import { itemRef, type ItemRef } from "../item-ref";
 
@@ -45,6 +45,7 @@ export function WorldScreen({ snapshot, onOpenItem, onImport }: Props) {
           <RulesInPlay snapshot={snapshot} onOpen={onOpenItem} />
           <Section title="Named scopes" items={scopesInPlay(snapshot, sandbox)} detail={(i) => i.key} onOpen={onOpenItem} />
           <Section title="Events (world history)" items={inSandbox("event")} detail={(i) => (i.class === "event" ? "from " + i.start : "")} onOpen={onOpenItem} />
+          <LoggedEvents snapshot={snapshot} />
         </div>
         <div>
           <h2>Things, by kind</h2>
@@ -62,6 +63,31 @@ export function WorldScreen({ snapshot, onOpenItem, onImport }: Props) {
       </div>
       <p className="muted gap-top">{snapshot.log.length} log entries (see the Log tab).</p>
       {snapshot.persistent === false && <PersistNote />}
+    </>
+  );
+}
+
+// Events recorded in the log (from the Log tab or a sandbox file's `log:`), alongside world
+// history: both are events in the world. Withdrawn ones are shown struck through.
+function LoggedEvents({ snapshot }: { snapshot: Snapshot }) {
+  const events = snapshot.log.filter((e) => e.body.content.kind === "event");
+  if (events.length === 0) return null;
+  return (
+    <>
+      <h2>Events in the log</h2>
+      <div className="card">
+        <ul className="plain">
+          {events.map((entry) => {
+            const event = entry.body.content.values.event as EventRecord;
+            return (
+              <li key={entry.id} className={entry.status === "withdrawn" ? "withdrawn" : ""}>
+                {event.label} <span className="muted">· from {event.start}{event.end === null ? "" : " to " + event.end} · {entry.status}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <p className="muted">Add, correct or withdraw them on the Log tab.</p>
     </>
   );
 }

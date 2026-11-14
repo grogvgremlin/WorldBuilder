@@ -4,9 +4,9 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
 import { IndexedDbStore } from "../../src/store/indexeddb-store";
-import { migrateCopyV1 } from "../../src/store/migrate";
+import { migrateCopyV1, migrateCopyV2 } from "../../src/store/migrate";
 import { makeEntry } from "../../src/log/log";
-import type { WholeCopyV1 } from "../../src/schema";
+import type { WholeCopyV1, WholeCopyV2 } from "../../src/schema";
 import { MemoryStore } from "../../src/store/memory-store";
 import { resolveStored, testDeps } from "../helpers";
 
@@ -83,5 +83,88 @@ describe("migration from slice 0", () => {
     const store = await IndexedDbStore.open(name);
     expect((await store.listEntries("slice0")).length).toBe(1);
     expect((await resolveStored(store, "slice0", "u", 2525)).values.Ld).toBe(8);
+  });
+});
+
+// Part A's shape (12 Nov): the manifest held the category order; the context one package list.
+function partACopy(): WholeCopyV2 {
+  const deps = testDeps();
+  const wages = makeEntry(deps, {
+    kind: "event",
+    inWorldDate: 2524,
+    targets: ["t"],
+    values: { event: { key: "w", label: "Wages withheld", kind: "wages_withheld", roles: {}, start: 2524, end: null } },
+  });
+  const rule = (key: string, layer: string, kind: string, value: number, category: string, scopeKey: string, trigger: unknown) => ({
+    class: "rule", key, label: key, space: "library", package: layer === "campaign" ? "camp" : "rules",
+    effect: { stat: "Ld", kind, value, targetPoint: "inline" },
+    scope: { node: "reaches", target: { by: "thing", key: scopeKey }, via: [{ link: scopeKey === "n" ? "raised_at" : "member_of", repeat: false }], when: "as_of" },
+    trigger, nature: trigger ? "environment" : "origin", category, sourceLayer: layer, base: null, reason: null,
+  });
+  return {
+    format: "worldbuilder-copy",
+    version: 2,
+    exportedTime: "2026-11-12T00:00:00.000Z",
+    meta: {},
+    logs: { e1: [wages] },
+    content: [
+      { class: "package", key: "base", label: "Base", space: "library", package: "base", sourceLayer: "book", edition: "wfb6", requires: [], conflicts: [], members: ["wfb6"] },
+      { class: "manifest", key: "wfb6", label: "WFB 6th", space: "library", package: "base", statOrder: ["Ld"], bagOrder: ["set", "add", "multiply", "cap", "floor"],
+        categoryOrder: { origin: [["organisation"], ["place"], ["title"]], stationed: [["place"], ["organisation"], ["title"]] } },
+      { class: "package", key: "rules", label: "Rules", space: "library", package: "rules", sourceLayer: "book", edition: "wfb6", requires: [], conflicts: [], members: [] },
+      { class: "package", key: "camp", label: "Campaign", space: "library", package: "camp", sourceLayer: "campaign", edition: "wfb6", requires: [], conflicts: [], members: [] },
+      rule("pride", "book", "add", 1, "place", "n", null),
+      rule("school", "book", "set", 8, "organisation", "s", null),
+      rule("wages", "campaign", "add", -1, "title", "n", { node: "in_force", what: "wages_withheld", roles: {} }),
+      { class: "sandbox", key: "e1", label: "E1", space: "e1", package: "e1", members: [] },
+      { class: "context", key: "wfb6", label: "WFB 6th", space: "e1", package: "e1", manifest: "wfb6", packages: ["base", "rules", "camp"] },
+      { class: "thing", key: "n", label: "Nuln", space: "e1", package: "e1", kinds: [], attributes: {} },
+      { class: "thing", key: "s", label: "School", space: "e1", package: "e1", kinds: [], attributes: {} },
+      { class: "unit", key: "u", label: "Handgunners", space: "e1", package: "e1", profile: { Ld: 7 }, raised: 2520, context: null },
+      { class: "link", key: "u~raised_at~n~2520", label: "raised at", space: "e1", package: "e1", kind: "raised_at", from: "u", to: "n", start: 2520, end: null },
+      { class: "link", key: "u~member_of~s~2520", label: "member of", space: "e1", package: "e1", kind: "member_of", from: "u", to: "s", start: 2520, end: null },
+    ],
+    drafts: [],
+  };
+}
+
+describe("migration from slice 1 Part A", () => {
+  it("moves the category order to the sandbox, splits the context's packages, and keeps the values", async () => {
+    const store = new MemoryStore();
+    await store.replaceWithCopy(migrateCopyV2(partACopy()));
+    const content = await store.listContent();
+    const find = (cls: string, key: string) => content.find((i) => i.class === cls && i.key === key) as Record<string, unknown>;
+    expect(find("manifest", "wfb6").core).toEqual(["base"]);
+    expect("categoryOrder" in find("manifest", "wfb6")).toBe(false);
+    expect(find("context", "wfb6")).toMatchObject({ books: ["rules"], faqs: [], house: [], campaign: ["camp"], categoryOrder: null });
+    expect((find("sandbox", "e1").categoryOrder as { origin: string[][] }).origin).toEqual([["organisation"], ["place"], ["title"]]);
+    // Organisation first (kept from the old manifest): School = 8, Nuln +1 -> 9, wages -1 -> 8.
+    expect((await resolveStored(store, "e1", "u", 2525)).values.Ld).toBe(8);
+  });
+
+  it("upgrades a Part A IndexedDB database in place", async () => {
+    const name = "partA-" + Math.random();
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(name, 2);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        const logs = db.createObjectStore("logs", { autoIncrement: true });
+        logs.createIndex("sandbox", "sandbox", { unique: false });
+        logs.createIndex("entryId", "entry.id", { unique: true });
+        db.createObjectStore("items", { keyPath: ["space", "key"] });
+        db.createObjectStore("drafts", { keyPath: "id" });
+        db.createObjectStore("meta");
+        const old = partACopy();
+        for (const entry of old.logs.e1) request.transaction!.objectStore("logs").add({ sandbox: "e1", entry });
+        for (const item of old.content) request.transaction!.objectStore("items").put(item);
+      };
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    });
+    const store = await IndexedDbStore.open(name);
+    expect((await resolveStored(store, "e1", "u", 2525)).values.Ld).toBe(8);
   });
 });

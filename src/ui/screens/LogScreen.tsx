@@ -23,6 +23,12 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
   const [roles, setRoles] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  // "Correct" (infra §2): the original is withdrawn and a new entry added; nothing is edited.
+  const [correcting, setCorrecting] = useState<ReadEntry | null>(null);
+  const things = snapshot.content.filter((i) => (i.class === "thing" || i.class === "unit") && i.space === sandbox);
+  const knownKinds = [...new Set([...suggestions.map((x) => x.kind), ...snapshot.content.filter((i) => i.class === "event").map((i) => (i.class === "event" ? i.kind : ""))])];
+  const addRole = (role: string, thingKey: string) => setRoles((roles.trim() ? roles.trim() + "\n" : "") + role + " = " + thingKey);
+  const [rolePick, setRolePick] = useState({ role: "", thing: "" });
 
   const fill = (suggestion: Suggestion) => {
     setLabel(suggestion.kind.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()));
@@ -40,11 +46,24 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
       end: end.trim() === "" ? null : Number(end),
     };
     if (!sandbox) return;
+    if (correcting) await data.withdrawEntry(sandbox, correcting.id, "corrected by a new entry");
     await data.addEvent(sandbox, event);
     setLabel("");
     setStart("");
     setEnd("");
+    setCorrecting(null);
     await onChanged();
+  };
+
+  const correct = (entry: ReadEntry) => {
+    const event = entry.body.content.values.event as EventRecord;
+    setCorrecting(entry);
+    setLabel(event.label);
+    setKind(event.kind);
+    setRoles(Object.entries(event.roles).map(([role, thing]) => role + " = " + thing).join("\n"));
+    setStart(String(event.start));
+    setEnd(event.end === null ? "" : String(event.end));
+    window.scrollTo(0, 0);
   };
 
   const canAdd = sandbox !== null && label.trim() !== "" && kind.trim() !== "" && start.trim() !== "" && !Number.isNaN(Number(start));
@@ -53,8 +72,21 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
   return (
     <>
       <h1>Log</h1>
-      <h2>Add an event entry</h2>
+      <h2>{correcting ? "Correct an event entry" : "Add an event entry"}</h2>
       <div className="card">
+        {correcting && (
+          <p className="problem-warning">
+            Correcting “{(correcting.body.content.values.event as EventRecord).label}”. Saving withdraws the original (it stays in the audit view) and adds this one.{" "}
+            <button className="link" onClick={() => setCorrecting(null)}>Cancel</button>
+          </p>
+        )}
+        <details className="gap-bottom">
+          <summary className="muted">What goes in each field?</summary>
+          <p className="muted"><strong>Label</strong>: any words, shown in lists (“Wages withheld”).</p>
+          <p className="muted"><strong>Kind</strong>: what rules look for, written with underscores. A rule's trigger <code>in_force(wages_withheld, …)</code> matches events of kind <code>wages_withheld</code>. Kinds the rules here use: {suggestions.length ? suggestions.map((x) => x.kind).join(", ") : "none yet"}.</p>
+          <p className="muted"><strong>Roles</strong>: who takes part, one per line as <code>role = thing key</code>. A trigger asking for <code>withholder = wissenland_treasury</code> needs that role filled by that thing. Use the picker below.</p>
+          <p className="muted"><strong>From / until</strong>: years. From counts, until doesn't (from 2524 until 2526 is on in 2524 and 2525). Leave until blank for “still going”.</p>
+        </details>
         {suggestions.length > 0 && (
           <>
             <p className="muted">Events your rules' triggers read:</p>
@@ -68,9 +100,24 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
         <label htmlFor="ev-label">Label</label>
         <input id="ev-label" value={label} onChange={(e) => setLabel(e.target.value)} />
         <label htmlFor="ev-kind">Kind</label>
-        <input id="ev-kind" value={kind} autoCapitalize="off" onChange={(e) => setKind(e.target.value)} />
+        <input id="ev-kind" list="ev-kinds" value={kind} autoCapitalize="off" onChange={(e) => setKind(e.target.value)} />
+        <datalist id="ev-kinds">
+          {knownKinds.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
         <label htmlFor="ev-roles">Roles (one per line: role = thing key)</label>
         <textarea id="ev-roles" className="short" value={roles} autoCapitalize="off" onChange={(e) => setRoles(e.target.value)} />
+        <div className="row gap-top">
+          <input className="grow" placeholder="role, e.g. withholder" value={rolePick.role} autoCapitalize="off" onChange={(e) => setRolePick({ ...rolePick, role: e.target.value })} aria-label="Role" />
+          <select className="inline grow" value={rolePick.thing} onChange={(e) => setRolePick({ ...rolePick, thing: e.target.value })} aria-label="Thing">
+            <option value="">thing…</option>
+            {things.map((t) => (
+              <option key={t.key} value={t.key}>{t.label}</option>
+            ))}
+          </select>
+          <button className="small" disabled={!rolePick.role || !rolePick.thing} onClick={() => { addRole(rolePick.role.trim(), rolePick.thing); setRolePick({ role: "", thing: "" }); }}>Add role</button>
+        </div>
         <div className="row">
           <div className="grow">
             <label htmlFor="ev-start">From</label>
@@ -82,7 +129,7 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
           </div>
         </div>
         <div className="row gap-top">
-          <button className="primary" disabled={!canAdd} onClick={add}>Add to the log</button>
+          <button className="primary" disabled={!canAdd} onClick={add}>{correcting ? "Save the correction" : "Add to the log"}</button>
         </div>
       </div>
 
@@ -108,7 +155,10 @@ export function LogScreen({ data, snapshot, onChanged }: Props) {
               {content.kind === "withdrawal" && content.values.reason ? " · " + String(content.values.reason) : ""}
             </p>
             {entry.status === "accepted" && content.kind !== "withdrawal" && (
-              <button onClick={async () => { await data.withdrawEntry(sandbox, entry.id, "withdrawn from the log"); await onChanged(); }}>Withdraw</button>
+              <div className="row">
+                {content.kind === "event" && <button onClick={() => correct(entry)}>Correct</button>}
+                <button onClick={async () => { await data.withdrawEntry(sandbox, entry.id, "withdrawn from the log"); await onChanged(); }}>Withdraw</button>
+              </div>
             )}
           </div>
         );

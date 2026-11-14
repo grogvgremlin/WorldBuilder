@@ -2,21 +2,21 @@
 // Design: see store.ts. Technical choices (plain IndexedDB, no wrapper library) are in
 // build/build-log.md.
 //
-// Object stores (database version 2):
+// Object stores (database version 3; the stores are the same as version 2's):
 //   logs     - { sandbox, entry } records, keyed by an auto-increment number so entries come
 //              back in append order. Indexed by sandbox, and by entry ID (unique) so the same
 //              entry can't be appended twice. Nothing inside the seal is indexed.
 //   items    - content items, keyed by [space, key].
 //   drafts   - draft batches, keyed by `id`.
 //   meta     - small settings, keyed by name.
-// Version 1 (slice 0) had `log` and `content`; opening an old database moves their data into
-// the new stores through store/migrate.ts.
+// Version 1 (slice 0) had `log` and `content`; version 2 (slice 1 Part A) had today's stores
+// with older item shapes. Opening an old database brings it forward through store/migrate.ts.
 
 import type { LogEnvelope, ContentItem, DraftBatch, Meta, WholeCopy, WholeCopyV1 } from "../schema";
 import type { Store } from "./store";
-import { migrateCopyV1 } from "./migrate";
+import { migrateCopyV1, migrateItemsV2 } from "./migrate";
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const ALL_STORES = ["logs", "items", "drafts", "meta"];
 
 interface LogRecord {
@@ -75,12 +75,22 @@ function migrateFromVersion1(db: IDBDatabase, tx: IDBTransaction): void {
   };
 }
 
+// Version 2's items take version 3's shapes, in place, inside the upgrade.
+function migrateFromVersion2(tx: IDBTransaction): void {
+  const items = tx.objectStore("items").getAll();
+  items.onsuccess = () => {
+    for (const item of migrateItemsV2(items.result as Record<string, unknown>[])) tx.objectStore("items").put(item);
+    tx.objectStore("drafts").clear(); // drafts hold items in the old shape
+  };
+}
+
 function openDatabase(name: string, factory: IDBFactory): Promise<IDBDatabase> {
   const request = factory.open(name, DB_VERSION);
   request.onupgradeneeded = (event) => {
     const db = request.result;
-    createVersion2Stores(db);
+    if (event.oldVersion < 2) createVersion2Stores(db);
     if (event.oldVersion === 1) migrateFromVersion1(db, request.transaction!);
+    if (event.oldVersion === 2) migrateFromVersion2(request.transaction!);
   };
   return done(request);
 }
@@ -161,7 +171,7 @@ export class IndexedDbStore implements Store {
   async exportCopy(exportedTime: string): Promise<WholeCopy> {
     return {
       format: "worldbuilder-copy",
-      version: 2,
+      version: 3,
       exportedTime,
       meta: await this.getMeta(),
       logs: await this.allLogs(),

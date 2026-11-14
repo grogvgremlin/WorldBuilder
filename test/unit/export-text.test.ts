@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { MemoryStore } from "../../src/store/memory-store";
 import { containerToText, itemToText, ruleToText, type Container } from "../../src/import/export-text";
+import type { Manifest } from "../../src/schema";
 import { readBackRule } from "../../src/import/read-back";
 import type { ContentItem, Package, Rule } from "../../src/schema";
 import { importToDraft, loadFixture, loadSet, testDeps } from "../helpers";
@@ -23,12 +24,14 @@ describe.each(sets)("export text (%s)", (set) => {
     const store = new MemoryStore();
     await loadSet(store, testDeps(), set);
     const content = await store.listContent();
-    // Packages first, so a fresh store has them before the sandboxes that switch them on.
-    const all = containers(content).sort((a, b) => (a.class === b.class ? 0 : a.class === "package" ? -1 : 1));
+    // Packages, then manifests (which name their core), then the sandboxes that use them.
+    const rank = (i: ContentItem) => (i.class === "package" ? 0 : i.class === "manifest" ? 1 : 2);
+    const files: (Container | Manifest)[] = [...containers(content), ...content.filter((i): i is Manifest => i.class === "manifest")];
+    const all = files.sort((a, b) => rank(a) - rank(b));
 
     const fresh = new MemoryStore();
     for (const container of all) {
-      const text = containerToText(container, content);
+      const text = container.class === "manifest" ? itemToText(container, undefined, content) : containerToText(container, content);
       const again = await importToDraft(store, testDeps(), text);
       expect(again.problems, container.key).toEqual([]);
       expect(again.content.filter((c) => c.status !== "unchanged").map((c) => c.item.key), container.key).toEqual([]);
@@ -43,7 +46,7 @@ describe.each(sets)("export text (%s)", (set) => {
     await loadSet(store, testDeps(), set);
     const content = await store.listContent();
     for (const item of content) {
-      const container = containers(content).find((c) => c.key === item.package && c.space === item.space);
+      const container = containers(content).find((c) => c.key === item.package && c.space === item.space && item.class !== "manifest");
       const draft = await importToDraft(store, testDeps(), itemToText(item, container, content));
       expect(draft.problems, item.key).toEqual([]);
       expect(draft.content.filter((c) => c.status !== "unchanged").map((c) => c.item.key), item.key).toEqual([]);

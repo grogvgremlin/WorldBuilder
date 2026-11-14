@@ -78,7 +78,9 @@ _Session 14 (8 Nov 2026); **session 15**: Battle close-out, dice and authoring t
 - **Contingent:** a sub-unit with its own origin and date (replacements, merges).
 - **Battlefield state:** how a mixed unit fights: original / new / average / majority / individual.
 - **Step:** origin · stationed · battle location · battle (views Build · Here · Battle-ready · Battle).
-- **Category order:** the declared run order of rule categories within a step; editing it is the bulk GM fix.
+- **Category order:** the declared run order of rule categories within a step (place → organisation → title); set on the **sandbox**, overridable per manifest context; editing it is the bulk GM fix (build, 14 Nov).
+- **Bag order:** the order inside a bag when nothing else decides: set → add → multiply → cap → floor; the game's default (manifest), pinnable (build, 12 Nov).
+- **GM fix:** a dated, withdrawable log entry that changes order or reach out of fiction: a **package switch**, a **category-order edit**, a **pin** (build).
 - **Source layer:** book → FAQ → house rules → campaign.
 - **Switch-off / switch-on:** removing a rule for a scope while a trigger holds / naming the original rule to bring it back.
 - **Embedding / structural clash / accommodation:** recognition as adopting another base's law by reference / an override landing where the other base isn't embedded / an in-fiction agreement parking a clash.
@@ -198,7 +200,9 @@ _Session 14 (8 Nov 2026); **session 15**: Battle close-out, dice and authoring t
 - **Near-duplicate notice:** the same change arriving by two routes; offers to withdraw one.
 
 ## Conversion (session 18: `pillars/conversion.md`)
-- **Manifest context:** a system's part of a sandbox (TOW, 6th, WFRP); world facts are shared by all, system data kept per context.
+- **Manifest context:** a system's part of a sandbox (TOW, 6th, WFRP); world facts are shared by all, system data kept per context. Lists its packages in four groups, each in order: **books → FAQs → house rules → campaign** (build, 14 Nov).
+- **Manifest (v2):** the game and only the game: statlines, classes, categories, bag order and its **core packages** (always applied); its own file with one key (build, 14 Nov).
+- **Corrects:** an FAQ package's link to the package it errata; its entries amend or supersede what they change (build, 14 Nov).
 - **Make common:** a flag on each rule (default on for GM rules; session 19: follows the rule's editable by) saying its hook is about the shared world, so other contexts are asked to consider it; off = **private** to the context.
 - **Cross-context notice:** "*Winds blow strong* has an effect in TOW — take a look for 6th"; raised in every context with no rule on a common hook; dismissable; clears when bound.
 - **Echo guard** (tail): the converter not converting back what was converted from a context, read from *caused by*.

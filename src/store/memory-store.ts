@@ -64,7 +64,7 @@ export class MemoryStore implements Store {
     for (const [sandbox, entries] of this.logs) logs[sandbox] = copyOf(entries);
     return {
       format: "worldbuilder-copy",
-      version: 2,
+      version: 3,
       exportedTime,
       meta: await this.getMeta(),
       logs,

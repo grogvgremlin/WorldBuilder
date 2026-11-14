@@ -11,7 +11,7 @@ import { askForPersistentStorage } from "../store/indexeddb-store";
 import { migrateCopyV1 } from "../store/migrate";
 import { acceptedEntries, appendEvent, pinOrder, readLog, setCategoryOrder, switchPackage, withdraw, type LogDeps, type ReadEntry } from "../log/log";
 import { OWNER } from "../log/unseal";
-import { buildDraft, deployDraft, discardDraft, saveDraft } from "../import/draft";
+import { buildDraft, deployDraft, discardDraft, refreshDraft, saveDraft, type Existing } from "../import/draft";
 import { resolveUnit, type UnitResolution } from "../overlay/resolve";
 import { contextFor, readContext, type ContextView } from "../overlay/context";
 import { filterUnits, ruleCheckFor, unitsRuleAppliesTo, type Landing, type UnitFilter } from "../overlay/landing";
@@ -87,7 +87,9 @@ export class AppData {
 
   // --- Import -> draft -> deploy ---------------------------------------------------------
 
-  async importText(text: string, fileLabel: string): Promise<DraftBatch> {
+  // What a draft is checked against: everything deployed, events already logged, and the items
+  // in the other drafts waiting (so a set of files loaded together doesn't warn about itself).
+  private async existing(exceptDraft: string | null): Promise<Existing> {
     const all = await this.store.listContent();
     const loggedEventKeys: Record<string, string[]> = {};
     for (const sandbox of all.filter((i) => i.class === "sandbox")) {
@@ -95,14 +97,39 @@ export class AppData {
         .filter((e) => e.status === "accepted" && e.body.content.kind === "event")
         .map((e) => (e.body.content.values.event as EventRecord).key);
     }
-    const draft = buildDraft(text, fileLabel, { content: all, loggedEventKeys }, this.deps);
+    const pending = (await this.store.listDrafts()).filter((d) => d.id !== exceptDraft).flatMap((d) => d.content.map((c) => c.item));
+    return { content: all, loggedEventKeys, pending };
+  }
+
+  async importText(text: string, fileLabel: string): Promise<DraftBatch> {
+    const draft = buildDraft(text, fileLabel, await this.existing(null), this.deps);
     await saveDraft(this.store, draft);
     return draft;
   }
 
+  // A test world: one draft per file. Files with an identical draft already waiting are skipped,
+  // so tapping a test world twice doesn't queue it twice. Returns how many were skipped.
+  async importSet(files: { name: string; text: string }[]): Promise<number> {
+    const waiting = new Set((await this.store.listDrafts()).map((d) => d.sourceText));
+    let skipped = 0;
+    for (const file of files) {
+      if (waiting.has(file.text)) skipped++;
+      else await this.importText(file.text, file.name);
+    }
+    return skipped;
+  }
+
+  // Deploys a draft after rebuilding it against what's there now: stale warnings and statuses go,
+  // and an event already logged isn't logged again.
   async deploy(draft: DraftBatch): Promise<void> {
-    await deployDraft(this.store, this.deps, draft);
-    if (draft.target.kind === "sandbox") await this.openSandbox(draft.target.sandbox);
+    const fresh = refreshDraft(draft, await this.existing(draft.id));
+    await deployDraft(this.store, this.deps, fresh);
+    if (fresh.target.kind === "sandbox") await this.openSandbox(fresh.target.sandbox);
+  }
+
+  // Rebuilds every draft waiting against the current state, for the review screen.
+  async refreshDrafts(): Promise<void> {
+    for (const draft of await this.store.listDrafts()) await this.store.putDraft(refreshDraft(draft, await this.existing(draft.id)));
   }
 
   // Deploys drafts one by one, oldest first, so later files see what earlier ones deployed.

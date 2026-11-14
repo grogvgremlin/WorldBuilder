@@ -551,34 +551,6 @@
             "type": "string"
           }
         },
-        "categoryOrder": {
-          "type": "object",
-          "properties": {
-            "origin": {
-              "type": "array",
-              "items": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "stationed": {
-              "type": "array",
-              "items": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "required": [
-            "origin",
-            "stationed"
-          ],
-          "additionalProperties": false
-        },
         "bagOrder": {
           "type": "array",
           "items": {
@@ -591,6 +563,12 @@
               "floor"
             ]
           }
+        },
+        "core": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -600,8 +578,8 @@
         "space",
         "package",
         "statOrder",
-        "categoryOrder",
-        "bagOrder"
+        "bagOrder",
+        "core"
       ],
       "additionalProperties": false
     },
@@ -633,6 +611,41 @@
             }
           ]
         },
+        "categoryOrder": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "origin": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "stationed": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "origin",
+                "stationed"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "members": {
           "type": "array",
           "items": {
@@ -646,6 +659,7 @@
         "label",
         "space",
         "package",
+        "categoryOrder",
         "members"
       ],
       "additionalProperties": false
@@ -681,11 +695,64 @@
         "manifest": {
           "type": "string"
         },
-        "packages": {
+        "books": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "faqs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "house": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "campaign": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "categoryOrder": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "origin": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "stationed": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "origin",
+                "stationed"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -695,7 +762,11 @@
         "space",
         "package",
         "manifest",
-        "packages"
+        "books",
+        "faqs",
+        "house",
+        "campaign",
+        "categoryOrder"
       ],
       "additionalProperties": false
     }

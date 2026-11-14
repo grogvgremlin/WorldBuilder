@@ -4,21 +4,23 @@
 // edits); build/slice-1-brief.md §2.1 (a library package file, or a sandbox file). The shape
 // is the text format in build/yaml-guide.md.
 
-import type {
-  CategoryRanks,
-  ContentItem,
-  EventRecord,
-  Link,
-  Manifest,
-  ManifestContext,
-  NamedScope,
-  NumberEdit,
-  Package,
-  Rule,
-  Sandbox,
-  Thing,
-  Unit,
-  WorldEvent,
+import {
+  CONTEXT_GROUPS,
+  type CategoryRanks,
+  type ContentItem,
+  type EventRecord,
+  type Link,
+  type Manifest,
+  type ManifestContext,
+  type NamedScope,
+  type NumberEdit,
+  type Package,
+  type Rule,
+  type Sandbox,
+  type Thing,
+  type Unit,
+  type WorldEvent,
+  type StepOrders,
 } from "../schema";
 import { expressionToText } from "./expression-text";
 
@@ -130,29 +132,40 @@ function ranksText(ranks: CategoryRanks): string {
   return "[" + ranks.map((rank) => (rank.length === 1 ? rank[0] : "[" + rank.join(", ") + "]")).join(", ") + "]";
 }
 
-// A manifest is written at the top of its package file, under the package header.
-function manifestBlock(manifest: Manifest): string[] {
+function keyList(keys: string[]): string {
+  return "[" + keys.map(yamlText).join(", ") + "]";
+}
+
+// "category_order:" with its two steps, indented under `indent`.
+function categoryOrderLines(order: StepOrders, indent: string): string[] {
+  return [indent + "category_order:", indent + "  origin: " + ranksText(order.origin), indent + "  stationed: " + ranksText(order.stationed)];
+}
+
+// A manifest is a file of its own.
+function manifestFile(manifest: Manifest): string[] {
   return [
     "manifest: " + header(manifest.label, manifest.key),
     "stats: [" + manifest.statOrder.join(", ") + "]",
-    "category_order:",
-    "  origin: " + ranksText(manifest.categoryOrder.origin),
-    "  stationed: " + ranksText(manifest.categoryOrder.stationed),
     "bag_order: [" + manifest.bagOrder.join(", ") + "]",
+    "core: " + keyList(manifest.core),
   ];
 }
 
 function contextBlock(context: ManifestContext): string[] {
-  return [
-    "  - context: " + header(context.label, context.key),
-    "    manifest: " + yamlText(context.manifest),
-    "    packages: [" + context.packages.map(yamlText).join(", ") + "]",
-  ];
+  const lines = ["  - context: " + header(context.label, context.key), "    manifest: " + yamlText(context.manifest)];
+  for (const { field } of CONTEXT_GROUPS) if (context[field].length) lines.push("    " + field + ": " + keyList(context[field]));
+  if (context.categoryOrder) lines.push(...categoryOrderLines(context.categoryOrder, "    "));
+  return lines;
 }
 
 function containerHeader(container: Container): string[] {
-  if (container.class === "sandbox") return ["sandbox: " + header(container.label, container.key)];
+  if (container.class === "sandbox") {
+    const lines = ["sandbox: " + header(container.label, container.key)];
+    if (container.categoryOrder) lines.push(...categoryOrderLines(container.categoryOrder, ""));
+    return lines;
+  }
   const lines = ["package: " + header(container.label, container.key)];
+  if (container.space !== "library") lines.push("sandbox: " + yamlText(container.space)); // local to a sandbox
   if (container.edition) lines.push("edition: " + yamlText(container.edition));
   lines.push("layer: " + container.sourceLayer);
   if (container.requires.length) lines.push("requires: [" + container.requires.map(yamlText).join(", ") + "]");
@@ -181,7 +194,7 @@ function sectionOf(item: ContentItem): SectionName | null {
     case "event":
       return "events";
     default:
-      return null; // manifests go in the header; packages and sandboxes are the header
+      return null; // a manifest is a file of its own; packages and sandboxes are the header
   }
 }
 
@@ -204,7 +217,6 @@ function sections(items: ContentItem[], content: ContentItem[]): string[] {
   const statOrderOf = statOrderFinder(content.length ? content : items);
 
   const lines: string[] = [];
-  for (const manifest of items.filter((i): i is Manifest => i.class === "manifest")) lines.push(...manifestBlock(manifest));
 
   const order: SectionName[] = [];
   const blocks = new Map<SectionName, string[][]>();
@@ -265,6 +277,7 @@ export function ruleToText(rule: Rule, pkg: Package | undefined): string {
 // anything else. A unit comes with its own links; a package or sandbox gives the whole of it.
 export function itemToText(item: ContentItem, container: Container | undefined, content: ContentItem[]): string {
   if (item.class === "package" || item.class === "sandbox") return containerToText(item, content);
+  if (item.class === "manifest") return manifestFile(item).join("\n") + "\n";
   const members = container ? membersOf(container, content) : [];
   const ownLinks =
     item.class === "unit"

@@ -45,7 +45,7 @@ describe("text import", () => {
       [2, "“things” is world content: it belongs in a sandbox file (start it `sandbox: [label, key]`)"],
     ]);
     const other = buildDraft("sandbox: [W, w]\nrules: []\n", "x", none, testDeps());
-    expect(other.problems[0].message).toBe("“rules” belongs in a library package file (start it `package: [label, key]`), switched on in a context");
+    expect(other.problems[0].message).toBe("“rules” belongs in a rules package file (start it `package: [label, key]`), switched on in a context");
   });
 
   it("reports problems per line and still imports the good items", () => {

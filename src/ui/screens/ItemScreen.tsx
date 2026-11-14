@@ -7,7 +7,7 @@
 // their links); design/text-format-and-csv.md §4, §6 (read-backs; export).
 
 import { useEffect, useState } from "react";
-import type { ContentItem, Link, Manifest, ManifestContext, Package, Rule, Sandbox, Thing, Unit, WorldEvent } from "../../schema";
+import { CONTEXT_GROUPS, type ContentItem, type Link, type Manifest, type ManifestContext, type Package, type Rule, type Sandbox, type Thing, type Unit, type WorldEvent } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import { readBackCondition, readBackRule } from "../../import/read-back";
 import { referencedKeys } from "../../import/expression-text";
@@ -27,12 +27,12 @@ interface Props {
   itemRef: ItemRef;
   onOpenItem: (ref: ItemRef) => void;
   onBack: () => void;
-  onChanged: () => Promise<void>;
+  onEditText: (text: string, label: string) => void;
 }
 
 type RefButton = (props: { k: string }) => JSX.Element;
 
-export function ItemScreen({ data, snapshot, itemRef: ref, onOpenItem, onBack }: Props) {
+export function ItemScreen({ data, snapshot, itemRef: ref, onOpenItem, onBack, onEditText }: Props) {
   const item = snapshot.all.find((i) => itemRef(i) === ref);
   const sandbox = snapshot.openSandbox;
   const lookup = (key: string) => findByKey(snapshot.content, key, sandbox);
@@ -66,12 +66,13 @@ export function ItemScreen({ data, snapshot, itemRef: ref, onOpenItem, onBack }:
 
       <div className="card">
         {item.class === "thing" && sandbox && <ThingView data={data} sandbox={sandbox} thing={item} readDate={readDate} Ref={Ref} onOpenItem={onOpenItem} lookup={lookup} />}
+        {item.class === "thing" && <ThingLinks thing={item} content={snapshot.content} Ref={Ref} onOpenItem={onOpenItem} />}
         {item.class === "link" && <LinkView link={item} Ref={Ref} />}
         {item.class === "rule" && <RuleView rule={item} labelOf={labelOf} Ref={Ref} />}
         {item.class === "scope" && <p>Units that {readBackCondition(item.query, labelOf, "after units that")}.</p>}
         {item.class === "event" && <EventView event={item} Ref={Ref} />}
         {item.class === "package" && <PackageView pkg={item} all={snapshot.all} onOpenItem={onOpenItem} />}
-        {item.class === "manifest" && <ManifestView manifest={item} />}
+        {item.class === "manifest" && <ManifestView manifest={item} Ref={Ref} />}
         {item.class === "context" && <ContextView context={item} Ref={Ref} />}
         {item.class === "sandbox" && <SandboxView sandbox={item} />}
       </div>
@@ -80,7 +81,12 @@ export function ItemScreen({ data, snapshot, itemRef: ref, onOpenItem, onBack }:
         <RuleLandings data={data} snapshot={snapshot} sandbox={sandbox} rule={item} readDate={readDate} onOpenItem={onOpenItem} lookup={lookup} />
       )}
 
-      <ItemText all={snapshot.all} item={item} label={item.class === "package" || item.class === "sandbox" ? "View the whole " + item.class + " as text" : "View text"} />
+      <ItemText
+        all={snapshot.all}
+        item={item}
+        label={item.class === "package" || item.class === "sandbox" ? "View the whole " + item.class + " as text" : "View text"}
+        onEditText={onEditText}
+      />
     </>
   );
 }
@@ -152,6 +158,33 @@ function branchNote(branch: { route: string; hops: number }): string {
   if (branch.hops > 1) return "· by" + branch.route;
   const kind = /[—←]([^→—]+)[→—]/.exec(branch.route)?.[1]?.trim() ?? "";
   return "· " + kind;
+}
+
+// A thing's own links, both ways, with their dates: tap one to see it and its text.
+function ThingLinks({ thing, content, Ref, onOpenItem }: { thing: Thing; content: ContentItem[]; Ref: RefButton; onOpenItem: (ref: ItemRef) => void }) {
+  const links = content.filter((i): i is Link => i.class === "link" && (i.from === thing.key || i.to === thing.key) && i.space === thing.space);
+  return (
+    <>
+      <h3>Its links (all dates)</h3>
+      {links.length === 0 && <p className="muted">None.</p>}
+      {links.map((link) => (
+        <p key={link.key}>
+          {link.from === thing.key ? (
+            <>
+              → {link.kind.replace(/_/g, " ")} → <Ref k={link.to} />
+            </>
+          ) : (
+            <>
+              <Ref k={link.from} /> → {link.kind.replace(/_/g, " ")} →
+            </>
+          )}{" "}
+          <span className="muted">{dates(link.start, link.end)}</span>{" "}
+          <button className="link" onClick={() => onOpenItem(itemRef(link))}>open</button>
+        </p>
+      ))}
+      <p className="muted">To change a link (end it, or move a place), open it, then Edit as text.</p>
+    </>
+  );
 }
 
 function LinkView({ link, Ref }: { link: Link; Ref: RefButton }) {
@@ -331,7 +364,7 @@ function PackageView({ pkg, all, onOpenItem }: { pkg: Package; all: ContentItem[
       {pkg.conflicts.length > 0 && <p className="muted">Conflicts with: {pkg.conflicts.join(", ")}</p>}
       <ul className="plain">
         {pkg.members.map((key) => {
-          const member = all.find((i) => i.space === "library" && i.key === key);
+          const member = all.find((i) => i.space === pkg.space && i.key === key);
           return (
             <li key={key}>
               <span className="tag">{member?.class ?? "?"}</span>{" "}
@@ -344,14 +377,23 @@ function PackageView({ pkg, all, onOpenItem }: { pkg: Package; all: ContentItem[
   );
 }
 
-function ManifestView({ manifest }: { manifest: Manifest }) {
+function ManifestView({ manifest, Ref }: { manifest: Manifest; Ref: RefButton }) {
   return (
     <>
       <p>Stats: {manifest.statOrder.join(" ")}</p>
-      <p>Origin order: {describeRanks(manifest.categoryOrder.origin)}</p>
-      <p>Stationed order: {describeRanks(manifest.categoryOrder.stationed)}</p>
       <p>Bag order: {manifest.bagOrder.join(" → ")}</p>
-      <p className="muted">These are the defaults; a context can override the category order (Library tab).</p>
+      <p>
+        Core, always applied:{" "}
+        {manifest.core.length === 0
+          ? "none"
+          : manifest.core.map((k, i) => (
+              <span key={k}>
+                {i > 0 ? ", " : ""}
+                <Ref k={k} />
+              </span>
+            ))}
+      </p>
+      <p className="muted">The game itself. Which books, FAQs, house rules and campaign packages go with it is set per sandbox, on the Sandbox tab.</p>
     </>
   );
 }
@@ -360,17 +402,23 @@ function ContextView({ context, Ref }: { context: ManifestContext; Ref: RefButto
   return (
     <>
       <p>
-        Manifest: <Ref k={context.manifest} />
+        Game: <Ref k={context.manifest} /> (its core comes with it)
       </p>
-      <p>Packages switched on by default, in order:</p>
-      <ul className="plain">
-        {context.packages.map((key) => (
-          <li key={key}>
-            <Ref k={key} />
-          </li>
-        ))}
-      </ul>
-      <p className="muted">Switch packages and change the order on the Library tab.</p>
+      {CONTEXT_GROUPS.map(({ field }) =>
+        context[field].length === 0 ? null : (
+          <p key={field}>
+            {field}:{" "}
+            {context[field].map((k, i) => (
+              <span key={k}>
+                {i > 0 ? ", " : ""}
+                <Ref k={k} />
+              </span>
+            ))}
+          </p>
+        ),
+      )}
+      {context.categoryOrder && <p>Its own category order: origin {describeRanks(context.categoryOrder.origin)}; stationed {describeRanks(context.categoryOrder.stationed)}</p>}
+      <p className="muted">Switch packages, change the order and see pins on the Sandbox tab.</p>
     </>
   );
 }

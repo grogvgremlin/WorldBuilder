@@ -42,7 +42,7 @@ describe("E1 Handgunners' Ld", () => {
     expect(school.decidedBy).toBe("category");
     // Q2: the ordering detail goes into the derivation text.
     expect(school.decidedByNote).toBe(
-      "category: organisation runs after place (order place → organisation → title, Warhammer Fantasy Battles 6th edition default); reversed it would be 9",
+      "category: organisation runs after place (order place → organisation → title, E1 Nuln default); reversed it would be 9",
     );
 
     expect(wages.scope.text).toBe("named scope “commissioned by the treasury”");

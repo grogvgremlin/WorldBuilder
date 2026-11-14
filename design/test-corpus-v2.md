@@ -1,6 +1,6 @@
 # Test corpus: v2 cases
 
-_Session 14 (8 Nov 2026); **session 15**: sections G (Battle close-out and dice) and H (authoring); **session 16**: section I (Campaigns: the consequence → commit loop, money, markets, time); **session 17**: I8–I10 (per-pick numbers, decks, expeditions); **session 18**: F6 (two manifest contexts, make common; replaces v1 D4) and F7 (narrative entries, stubs, reach via events). Continues `core/test-corpus.md` (v1 cases A–D, which still hold for target points, bags, rounding, combine rules and money; D4 superseded by F6). Each case: inputs, expected result, deciding docs. These are the **acceptance tests for the first prototype**. Notation as v1; rules written as scope + trigger (`rules-overlay.md` §6, §17)._
+_Session 14 (8 Nov 2026); **session 15**: sections G (Battle close-out and dice) and H (authoring); **session 16**: section I (Campaigns: the consequence → commit loop, money, markets, time); **session 17**: I8–I10 (per-pick numbers, decks, expeditions); **session 18**: F6 (two manifest contexts, make common; replaces v1 D4) and F7 (narrative entries, stubs, reach via events). **Slice 1 (12–14 Nov)**: section J (visibility, J1) and section K (containers and lists, K1–K5; their build test names in brackets). Continues `core/test-corpus.md` (v1 cases A–D, which still hold for target points, bags, rounding, combine rules and money; D4 superseded by F6). Each case: inputs, expected result, deciding docs. These are the **acceptance tests for the first prototype**. Notation as v1; rules written as scope + trigger (`rules-overlay.md` §6, §17)._
 
 ---
 
@@ -213,6 +213,40 @@ _Session 14 (8 Nov 2026); **session 15**: sections G (Battle close-out and dice)
 - **Inputs:** Warhammer Quest heroes enter a dungeon: one battle record, tiles placed by entries as rooms open. Between two dungeons with no settlement visit the group rests (a defined break): the dungeons are two linked battles inside one expedition event. The Barbarian (W 10) ends the first dungeon with 6 wounds taken and his healing potion used. A settlement visit ends the expedition.
 - **Expected:** the first dungeon's rooms share one log, so state carries with no extra entries. Post-battle proposes *Wounded 6* (counted condition on the model, in force during the expedition) and the potion gone; on commit, the second battle's set-up seeds him at 4/10 with no potion. Setting the expedition's end date (settlement) retires *Wounded 6* with no extra entry; the potion stays gone (an ordinary inventory change).
 - **Docs:** `pillars/campaign-loop.md` §12.4; `pillars/battle.md` §8.4–8.5.
+
+## J. Visibility (slice 1)
+
+### J1. The curse, sealed until set-up
+- **Inputs:** E1's world, wages paid. The GM adds a curse on the Handgunners, `Ld −1`, **sealed for the GM role**, with its reveal set to battle set-up. Bea (player) owns the roster.
+- **Expected:** Bea's login reads **Ld 8**; her derivation has no trace of the curse (no "can't tell"). The GM's view reads **7**; the GM viewing as Bea sees 8. When the set-up entry for a battle including the unit is accepted, a reveal entry grants Bea the curse: her view reads **7**, the derivation shows the curse "revealed at set-up, date".
+- **Docs:** `pillars/visibility.md` §1, §4, §6.
+
+## K. Containers and lists (slice 1)
+
+### K1. A package switched off in a context (build: C1) ✓ built
+- **Inputs:** E1's world in a sandbox with one WFB 6th context. The unpaid-wages rule in its own campaign package; Nuln civic pride and the Gunnery School in another. Read 2525, wages withheld.
+- **Expected:** both packages on → **7**. Campaign package switched off in this context → **8**; the derivation lists the wages rule as "not in play: package off in this context" (who, when), not as a scope or trigger failure. Back on → **7**.
+- **Docs:** `core/items-packages-and-library.md` §4 with `v2-reconciliation.md` §1 (build rows).
+
+### K2. Category order and pins (build: C2) ✓ built
+- **Inputs:** K1, wages withheld; the context overrides the origin order to organisation → place.
+- **Expected:** origin: School `= 8` then Nuln +1 → 9; stationed −1 → **8**, derivation "order organisation → place, set for this context by the GM, date". Withdraw the override → **7**. Pin Nuln before the School on this unit → **7**, "pinned" in the derivation.
+- **Docs:** `rules-overlay.md` §8, §12.
+
+### K3. A pick-up list with no world (build: L1)
+- **Inputs:** a practice roster from the WFB 6th Empire list: Handgunners ×10 with champion and musician, plus one other unit; one category limit broken.
+- **Expected:** points per unit, per category and in total from the list's costs; the broken limit shows as an issue; Ld **7** (printed; no world rules). Nothing is written to any log.
+- **Docs:** `pillars/visibility.md` §3; `rules-overlay.md` §7; `roster/rosters.md`.
+
+### K4. The same list, registered (build: L2)
+- **Inputs:** K3's units as a registered roster in E1's sandbox: Handgunners raised at Nuln 2520, member of the Gunnery School, stationed at Nuln.
+- **Expected:** read 2525: **7** with wages withheld, **8** paid; the derivation starts from the army-list base, then the world steps.
+- **Docs:** `world-structure.md` §12; E1.
+
+### K5. Racial deltas (build: L3)
+- **Inputs:** races Human, Orc, Black Orc *extends* Orc, each with the rank axis; units entered as printed.
+- **Expected:** Handgunners: Human base → unit delta → Ld 7. Their champion: Human → champion tier step → the printed champion line. A homebrew "Brutal Orcs: S +1 to race Orc" switched on: Orc Boyz and Black Orcs S 4 → 5 ("race Orc, homebrew"); narrowed to "Orc only", Black Orcs stay 4. Switched off: as printed.
+- **Docs:** `rules/races-and-units.md` §1–2.
 
 ---
 

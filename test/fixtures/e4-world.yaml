@@ -2,10 +2,15 @@
 
 sandbox: [E4 Grenzstadt, e4]
 
+# How places, organisations and titles stack for this world's rules (rules-overlay §12).
+category_order:
+  origin: [place, organisation, title]
+  stationed: [place, organisation, title]
+
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    packages: [wfb6_base, e4_rules]
+    books: [e4_rules]
 
 things:
   - [Grenzstadt, grenzstadt, [settlement]]

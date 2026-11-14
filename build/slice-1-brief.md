@@ -31,7 +31,7 @@ Slice 1 is bigger than slice 0. Build it **in parts, in this order**; each part 
 
 ### 1.2 "Macro and micro configurable" (owner, on Q3 and Q5)
 Design: `rules-overlay.md` §12 (AGREED) — "a declared run order of categories, per step, editable … shipped in the default setting package, editable per campaign or context. An edit is the bulk GM fix; dated, shown in the derivation. **Pins** remain for a single pair."
-- **Macro**: the category order per step, and the bag order, are **content**: held in the manifest's base package (the shipped default) and overridable per **manifest context** (§2). Not constants in code.
+- **Macro**: the category order per step, and the bag order, are **content**, not constants in code. ~~Both in the manifest's base package~~ **Corrected 14 Nov (owner decisions 1–2, build log):** the **bag order** belongs to the game (the manifest); the **category order** belongs to the world — set on the **sandbox**, overridable per **manifest context**. Folded into `rules-overlay.md` §8, §12.
 - **Micro**: a **pin** puts one rule before or after another for one value. A pin is a **dated GM fix**, written as a log entry, withdrawable like any entry.
 - Both show in the derivation: "order: place → organisation → title (context default, set by the GM 12 Nov)"; "pinned: School before Nuln (GM, 12 Nov)".
 - **Owner feedback 1** (swap or pin from the card) is this: on the unit card's derivation, a pair can be **pinned** or **swapped**; the result is a pin entry.
@@ -69,20 +69,20 @@ Slice 0 holds one flat world: every deployed rule is in play for every unit, and
 
 | Container | What it holds | Slice 1 |
 |---|---|---|
-| **Library** (on the device) | Packages not tied to any world: manifests, base packages, army lists, rules packages | One library. Packages are imported into it by text. |
-| **Manifest** (content, one per edition) | Statlines (stat order), classes, categories (army categories, e.g. Core / Special), rule categories and **category order per step**, **bag order** | The WFB stat order and default category order move out of code into a manifest fixture. |
-| **Sandbox** | One world (things, dated links, events), one log, its roles. | One or more sandboxes on the device; one is open at a time. |
-| **Manifest context** (inside a sandbox) | Which manifest it uses; which library packages are **switched on**, in order; its own overrides (category order); its GMs | A sandbox has one or more contexts. A rule is in play for a unit only if its package is switched on in the unit's context. |
+| **Library** (on the device) | Packages not tied to any world: games (manifests with their core), army lists, rules packages (books, FAQs, house rules, a game's campaign rules) | One library. Packages are imported into it by text. |
+| **Manifest** (the game, one per edition; its own file, one key) | Statlines (stat order), classes, categories (army categories, e.g. Core / Special), rule categories, **bag order**, its **core packages** (always applied). **Not** the category order (owner, 14 Nov) | The WFB stat order and bag order move out of code into a manifest fixture. |
+| **Sandbox** | One world (things, dated links, events), one log, its roles, the **category order** per step; **world** packages only: things, links, events, world patches, and the reasons and **hook objects** game rules trigger on. A game's rules (anything with game numbers) live in the library or local to a context, bound to a world hook (owner, 14 Nov) | One or more sandboxes on the device; one is open at a time. |
+| **Manifest context** (inside a sandbox) | Which manifest it uses; its packages in **four groups, each in order: books → FAQs → house rules → campaign** (library packages, or packages local to this context); its own override of the category order; its GMs | A sandbox has one or more contexts. A rule is in play for a unit only if its package is switched on in the unit's context. |
 | **Roster** | Units picked from an army list | **Registered** (in a sandbox and context, linked into the world) or **practice** (not registered, outside any sandbox: §1.3). |
 
 - **A package is not a scope.** Switching a package on in a context is what puts its rules in play there; the rule's scope still decides which units it lands on.
 - **World content belongs to the sandbox, rules to packages.** Slice 0's E1 fixture mixes world things, rules and a unit in one package because there was nowhere else to put them. Split every fixture into **world** (sandbox content), **rules** (a library package), **army** (army list in a package; rosters) and **log** (entries).
-- **Order of packages in a context** is the member order of the context's package list: content first, then patches in order (`items-packages-and-library.md` §4).
+- **Order of packages in a context**: the four groups in source-layer order, each in its listed order; within a package, content first, then patches in order (`items-packages-and-library.md` §4). FAQs **correct** the package they errata (owner, 14 Nov; Part B).
 - **Requires and conflicts** between packages: shape in the schema, a warning only.
 - **Out**: releases, supersedes, switch-offs (E3), the library browser, branching, promote as new.
 
 ### 2.2 Acceptance
-- **E1, E2, E4 still pass**, with their fixtures split as above and the category order read from the manifest.
+- **E1, E2, E4 still pass**, with their fixtures split as above and the category order read from the sandbox (corrected 14 Nov; was "the manifest").
 - **C1 — a package switched off in a context.** E1's world in a sandbox with one WFB context. The unpaid-wages rule sits in its own package ("Wissenland campaign rules"); Nuln civic pride and the Gunnery School in another. Read 2525 with wages withheld: both packages on → **7** (E1). Switch the campaign-rules package off in this context → **8**; the derivation lists the wages rule as "not in play: package off in this context", not as a scope or trigger failure. Switch it back on → **7**.
 - **C2 — category order from the context.** In E1, the context overrides the origin order to organisation → place. Origin: School `= 8` then Nuln +1 → 9; stationed −1 → **8** (wages withheld). The derivation says "order: organisation → place (set for this context by the GM, date)". Withdraw the override entry → back to 7. Then **pin** Nuln before the School on this unit only: same as E1 (**7**), with "pinned" in the derivation.
 
