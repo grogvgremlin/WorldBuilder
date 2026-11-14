@@ -7,7 +7,7 @@
 // their links); design/text-format-and-csv.md §4, §6 (read-backs; export).
 
 import { useEffect, useState } from "react";
-import { CONTEXT_GROUPS, type ContentItem, type Link, type Manifest, type ManifestContext, type Package, type Rule, type Sandbox, type Thing, type Unit, type WorldEvent } from "../../schema";
+import { CONTEXT_GROUPS, type ContentItem, type Hook, type Link, type Manifest, type ManifestContext, type Package, type Rule, type Sandbox, type Thing, type Unit, type WorldEvent } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import { readBackCondition, readBackRule } from "../../import/read-back";
 import { referencedKeys } from "../../import/expression-text";
@@ -70,6 +70,7 @@ export function ItemScreen({ data, snapshot, itemRef: ref, onOpenItem, onBack, o
         {item.class === "link" && <LinkView link={item} Ref={Ref} />}
         {item.class === "rule" && <RuleView rule={item} labelOf={labelOf} Ref={Ref} />}
         {item.class === "scope" && <p>Units that {readBackCondition(item.query, labelOf, "after units that")}.</p>}
+        {item.class === "hook" && <HookPage hook={item} content={snapshot.content} labelOf={labelOf} Ref={Ref} />}
         {item.class === "event" && <EventView event={item} Ref={Ref} />}
         {item.class === "package" && <PackageView pkg={item} all={snapshot.all} onOpenItem={onOpenItem} />}
         {item.class === "manifest" && <ManifestView manifest={item} Ref={Ref} />}
@@ -183,6 +184,29 @@ function ThingLinks({ thing, content, Ref, onOpenItem }: { thing: Thing; content
         </p>
       ))}
       <p className="muted">To change a link (end it, or move a place), open it, then Edit as text.</p>
+    </>
+  );
+}
+
+// A hook: what it watches, in words, and the rules that trigger on it. Its state at a date is on
+// the World tab (Hooks).
+function HookPage({ hook, content, labelOf, Ref }: { hook: Hook; content: ContentItem[]; labelOf: (key: string) => string; Ref: RefButton }) {
+  const rules = content.filter((i): i is Rule => i.class === "rule" && i.trigger !== null && referencedKeys(i.trigger).hooks.includes(hook.key));
+  return (
+    <>
+      <p>True when {readBackCondition(hook.condition, labelOf, "clause")}.</p>
+      <p>
+        Rules on it:{" "}
+        {rules.length === 0
+          ? "none"
+          : rules.map((r, i) => (
+              <span key={r.key}>
+                {i > 0 ? ", " : ""}
+                <Ref k={r.key} />
+              </span>
+            ))}
+      </p>
+      <p className="muted">A world item: each game binds its own rule to it. Its state at a date is under Hooks on the World tab.</p>
     </>
   );
 }

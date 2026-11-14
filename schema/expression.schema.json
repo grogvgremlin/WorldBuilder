@@ -131,6 +131,23 @@
       "properties": {
         "node": {
           "type": "string",
+          "const": "hook"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "key"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
           "const": "all"
         },
         "of": {

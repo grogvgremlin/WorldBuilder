@@ -9,6 +9,7 @@ import {
   type CategoryRanks,
   type ContentItem,
   type EventRecord,
+  type Hook,
   type Link,
   type Manifest,
   type ManifestContext,
@@ -22,7 +23,7 @@ import {
   type WorldEvent,
   type StepOrders,
 } from "../schema";
-import { expressionToText } from "./expression-text";
+import { conditionToText, expressionToText } from "./expression-text";
 
 export type Container = Package | Sandbox;
 
@@ -102,6 +103,10 @@ function unitLinkTuple(link: Link, raised: number): string {
   return "- [" + parts.join(", ") + "]";
 }
 
+function hookBlock(hook: Hook): string[] {
+  return ["  - hook: " + header(hook.label, hook.key), "    when: " + conditionToText(hook.condition, "hook")];
+}
+
 function scopeBlock(scope: NamedScope): string[] {
   return ["  - scope: " + header(scope.label, scope.key), "    query: " + expressionToText(scope.query)];
 }
@@ -112,7 +117,7 @@ export function ruleBlock(rule: Rule): string[] {
     "    effect: " + editToText(rule.effect),
     "    scope: " + expressionToText(rule.scope),
   ];
-  if (rule.trigger) lines.push("    trigger: " + expressionToText(rule.trigger));
+  if (rule.trigger) lines.push("    trigger: " + conditionToText(rule.trigger, "hook"));
   lines.push("    nature: " + rule.nature, "    category: " + rule.category, "    layer: " + rule.sourceLayer);
   if (rule.base) lines.push("    base: " + yamlText(rule.base));
   if (rule.reason) lines.push("    reason: " + yamlText(rule.reason));
@@ -175,7 +180,7 @@ function containerHeader(container: Container): string[] {
 
 // --- Sections ---------------------------------------------------------------------------------
 
-type SectionName = "contexts" | "things" | "links" | "units" | "scopes" | "rules" | "events";
+type SectionName = "contexts" | "things" | "links" | "units" | "hooks" | "scopes" | "rules" | "events";
 
 function sectionOf(item: ContentItem): SectionName | null {
   switch (item.class) {
@@ -189,6 +194,8 @@ function sectionOf(item: ContentItem): SectionName | null {
       return "units";
     case "scope":
       return "scopes";
+    case "hook":
+      return "hooks";
     case "rule":
       return "rules";
     case "event":
@@ -251,6 +258,8 @@ function blockFor(item: ContentItem, linksOfUnit: (key: string) => Link[], statO
       return unitBlock(item, linksOfUnit(item.key), statOrderOf(item));
     case "scope":
       return scopeBlock(item);
+    case "hook":
+      return hookBlock(item);
     case "rule":
       return ruleBlock(item);
     case "event":

@@ -9,7 +9,9 @@
 //   reaches(siege_of_nuln, participated_in, ever)
 //   in_force(wages_withheld, withholder = wissenland_treasury)
 //   all(a, b)   any(a, b)   not(a)
-//   commissioned_by_the_treasury             a bare key: a named scope
+//   commissioned_by_the_treasury             a bare key: a named scope in a scope, a hook in a
+//                                            trigger or a hook's condition
+//   hook(treasury_not_paying)                a hook, anywhere
 //   reaches("Gunnery School", member_of)     a label in quotes; the import matches it to a key
 //   (slice 1 brief §2.3, references by label; text-format §3)
 
@@ -32,9 +34,17 @@ function tokenize(text: string): Token[] {
   return tokens;
 }
 
+// What a bare key means where the condition is written: a named scope (in a scope or a named
+// scope's query) or a hook (in a trigger or a hook's condition).
+export type BareKey = "named_scope" | "hook";
+
 // Reads a condition. Throws an Error with a plain message if it can't.
-export function parseExpression(text: string): Expression {
-  const reader = new TokenReader(tokenize(text));
+export function parseExpression(text: string, bareKey: BareKey = "named_scope"): Expression {
+  // A whole field that is just a name (no brackets) names a hook or named scope, even with
+  // spaces: `trigger: Treasury not paying` (YAML drops quotes, so they can't be required here).
+  const plain = text.trim();
+  if (plain && !/[(),=>*→]/.test(plain)) return { node: bareKey, key: plain.replace(/^"|"$/g, "") };
+  const reader = new TokenReader(tokenize(text), bareKey);
   const expression = readExpression(reader);
   if (!reader.atEnd()) throw new Error("unexpected “" + reader.peek()!.text + "” after the condition");
   return expression;
@@ -42,7 +52,10 @@ export function parseExpression(text: string): Expression {
 
 class TokenReader {
   private index = 0;
-  constructor(private tokens: Token[]) {}
+  constructor(
+    private tokens: Token[],
+    readonly bareKey: BareKey,
+  ) {}
   peek(): Token | undefined {
     return this.tokens[this.index];
   }
@@ -71,7 +84,7 @@ class TokenReader {
 
 function readExpression(reader: TokenReader): Expression {
   const name = reader.word();
-  if (!reader.isSymbol("(")) return { node: "named_scope", key: name };
+  if (!reader.isSymbol("(")) return { node: reader.bareKey, key: name };
   reader.expectSymbol("(");
   let expression: Expression;
   switch (name) {
@@ -87,6 +100,9 @@ function readExpression(reader: TokenReader): Expression {
       break;
     case "not":
       expression = { node: "not", of: readExpression(reader) };
+      break;
+    case "hook":
+      expression = { node: "hook", key: reader.word() };
       break;
     default:
       throw new Error("unknown condition “" + name + "”");
@@ -176,6 +192,8 @@ export function expressionToText(expression: Expression): string {
     }
     case "named_scope":
       return name(expression.key);
+    case "hook":
+      return "hook(" + name(expression.key) + ")";
     case "all":
     case "any":
       return expression.node + "(" + expression.of.map(expressionToText).join(", ") + ")";
@@ -184,10 +202,17 @@ export function expressionToText(expression: Expression): string {
   }
 }
 
+// A condition as written in a field: a lone named scope (in a scope) or a lone hook (in a
+// trigger) is written as a bare key; anything else in full.
+export function conditionToText(expression: Expression, bareKey: BareKey): string {
+  if (expression.node === bareKey) return name(expression.key);
+  return expressionToText(expression);
+}
+
 // Every place in a condition that names a thing or a named scope, with a way to change it.
 // Used to match labels to keys on import.
 export interface ConditionRef {
-  kind: "thing" | "scope";
+  kind: "thing" | "scope" | "hook";
   written: string;
   set(key: string): void;
 }
@@ -209,6 +234,10 @@ export function conditionRefs(expression: Expression): ConditionRef[] {
       const scope = e;
       refs.push({ kind: "scope", written: scope.key, set: (key) => (scope.key = key) });
     }
+    if (e.node === "hook") {
+      const hook = e;
+      refs.push({ kind: "hook", written: hook.key, set: (key) => (hook.key = key) });
+    }
     if (e.node === "all" || e.node === "any") e.of.forEach(visit);
     if (e.node === "not") visit(e.of);
   };
@@ -217,16 +246,18 @@ export function conditionRefs(expression: Expression): ConditionRef[] {
 }
 
 // Every thing key a condition refers to (for "missing reference" checks).
-export function referencedKeys(expression: Expression): { things: string[]; scopes: string[] } {
+export function referencedKeys(expression: Expression): { things: string[]; scopes: string[]; hooks: string[] } {
   const things: string[] = [];
   const scopes: string[] = [];
+  const hooks: string[] = [];
   const visit = (e: Expression): void => {
     if (e.node === "reaches" && e.target.by === "thing") things.push(e.target.key);
     if (e.node === "in_force") things.push(...Object.values(e.roles));
     if (e.node === "named_scope") scopes.push(e.key);
+    if (e.node === "hook") hooks.push(e.key);
     if (e.node === "all" || e.node === "any") e.of.forEach(visit);
     if (e.node === "not") visit(e.of);
   };
   visit(expression);
-  return { things, scopes };
+  return { things, scopes, hooks };
 }

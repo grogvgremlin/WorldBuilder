@@ -47,8 +47,8 @@ describe("a thing's tree", () => {
   it("finds rules naming a thing in a trigger, or through a named scope", async () => {
     const { content, entries } = await e1();
     const tree = thingTree(buildWorld(content, entries), "wissenland_treasury", 2525);
-    // Unpaid wages names the treasury in its trigger (and in its named scope); the first is shown.
-    expect(tree.rules.map((r) => [r.rule.key, r.via])).toEqual([["unpaid_wages", "its trigger"]]);
+    // Unpaid wages reaches the treasury through its hook (and its named scope); the hook is shown.
+    expect(tree.rules.map((r) => [r.rule.key, r.via])).toEqual([["unpaid_wages", "hook “Treasury not paying”"]]);
     const commission = thingTree(buildWorld(content, entries), "handgunner_commission", 2525);
     expect(commission.rules).toEqual([]);
   });

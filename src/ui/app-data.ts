@@ -18,6 +18,7 @@ import { filterUnits, ruleCheckFor, unitsRuleAppliesTo, type Landing, type UnitF
 import type { RuleCheck } from "../overlay/derivation";
 import { buildWorld } from "../world/world";
 import { thingTree, type ThingTree } from "../world/tree";
+import { hookStates, type HookState } from "../overlay/hooks";
 
 // Everything a screen shows, read in one go.
 export interface Snapshot {
@@ -175,6 +176,15 @@ export class AppData {
   async resolveUnit(sandbox: string, unitKey: string, readDate: number): Promise<UnitResolution | null> {
     const { content, entries } = await this.inputs(sandbox);
     return resolveUnit(content, entries, unitKey, readDate, OWNER);
+  }
+
+  // The sandbox's hooks at a date; auto hooks only for rules switched on in one of its contexts.
+  async hookStates(sandbox: string, readDate: number): Promise<HookState[]> {
+    const { content, entries } = await this.inputs(sandbox);
+    const world = buildWorld(content, entries);
+    const on = new Set([...world.contexts.values()].flatMap((c) => readContext(world, c).packages.filter((p) => p.on).map((p) => p.key)));
+    const rulesInPlay = new Set(world.rules.filter((r) => r.package !== null && on.has(r.package)).map((r) => r.key));
+    return hookStates(content, entries, readDate, world.contexts.size > 0 ? rulesInPlay : null);
   }
 
   async thingTree(sandbox: string, thingKey: string, readDate: number): Promise<ThingTree> {

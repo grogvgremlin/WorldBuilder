@@ -14,7 +14,7 @@
 import type { ContentItem, Rule, Unit } from "../schema";
 import type { AcceptedEntry } from "../log/log";
 import type { Viewer } from "../log/unseal";
-import { buildWorld, kindsOf, labelOf, type World } from "../world/world";
+import { autoHookKey, buildWorld, kindsOf, labelOf, type World } from "../world/world";
 import { evaluate, type ConditionTrace, type TruthValue } from "./conditions";
 import { contextFor, describeRanks, packageState, readContext, type ContextView } from "./context";
 import {
@@ -136,6 +136,13 @@ interface CheckedRule {
   tree: RuleCheck;
 }
 
+// A rule triggers on a hook (owner, 15 Nov). An inline trigger is read through the hook made
+// from it (world.ts addAutoHooks), so the derivation always shows a hook.
+function triggerHook(rule: Rule) {
+  if (!rule.trigger || rule.trigger.node === "hook") return rule.trigger!;
+  return { node: "hook" as const, key: autoHookKey(rule.key) };
+}
+
 // rules-overlay.md §7: origin rules read the world as of raising; environment rules read now.
 function readInfoFor(rule: Rule, unit: Unit, readDate: number): ReadInfo {
   if (rule.nature === "origin") {
@@ -147,7 +154,7 @@ function readInfoFor(rule: Rule, unit: Unit, readDate: number): ReadInfo {
 function checkRule(world: World, view: ContextView, rule: Rule, unit: Unit, readDate: number): CheckedRule {
   const read = readInfoFor(rule, unit, readDate);
   const scope = evaluate(world, rule.scope, unit.key, read.readDate);
-  const trigger = rule.trigger ? evaluate(world, rule.trigger, unit.key, read.readDate) : null;
+  const trigger = rule.trigger ? evaluate(world, triggerHook(rule), unit.key, read.readDate) : null;
 
   const state = packageState(view, rule.package);
   const inPlay = view.context === null || (state?.on ?? false);

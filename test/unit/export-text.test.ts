@@ -70,7 +70,7 @@ describe("read-back", () => {
     expect(rule("unpaid_wages")).toEqual([
       "Effect: Ld −1.",
       "Applies to units that are in the named scope “commissioned by the treasury”.",
-      "Only while wages withheld is in force (withholder: Wissenland treasury).",
+      "Triggered by the hook “Treasury not paying”.",
       "Environment rule: reads the world at the date you're viewing, in the stationed step.",
       "Category title · campaign layer.",
     ]);
@@ -94,7 +94,7 @@ describe("rule text", () => {
         "  - rule: [Unpaid wages, unpaid_wages]",
         "    effect: [Ld, -1]",
         "    scope: commissioned_by_the_treasury",
-        "    trigger: in_force(wages_withheld, withholder = wissenland_treasury)",
+        "    trigger: treasury_not_paying",
         "    nature: environment",
         "    category: title",
         "    layer: campaign",
