@@ -4,15 +4,42 @@ Running record of the build: technical choices (with one line of why), the text 
 
 ---
 
-## Slice 1 status (12 Nov 2026)
+## Slice 1 status (14 Nov 2026)
 
-Built in parts, in the brief's order (§0). **Part A is done; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
+Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up after the owner's checks; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
 
 | Part | State |
 |---|---|
-| **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container and orders read from the manifest. **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
-| **B** Army list and roster builder | Waiting on army data. **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
+| **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container (manifest, core, rules, world, log). **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
+| **B** Army list and roster builder | Waiting on army data. Also in Part B: FAQs tied to what they correct (owner decision 5 above). **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
+
+### Owner decisions, 14 Nov: how the containers fit (supersede parts of brief §1.2 and §2.1)
+
+From the owner's checks of Part A on the phone and desktop. **To carry back to the design project.**
+
+1. **The manifest is the game, and only the game**: its statline, its bag order, and its **core** packages (always applied; can't be switched off as a whole). It's a file of its own with **one key** (`manifest: [label, key]`), not something inside a package.
+2. **The category order belongs to the world, not the game.** Origin and stationed only exist when a campaign runs in a world; a pick-up game has neither. It's set on the **sandbox**, and a context can override it for one game. This follows `rules-overlay.md` §12 ("shipped in the default setting package, editable per campaign or context"). Brief §1.2 had it in the manifest's base package; the brief should be corrected.
+3. **A context lists its packages in groups**, each in order: **books, FAQs, house rules, campaign**. The manifest brings its core. Each group expects packages of the matching source layer (warned if not).
+4. **Campaign packages can be local to a sandbox** (`sandbox: key` under a package's header), or in the library. This answers question 11.
+5. **FAQs attach to what they correct** (agreed, for Part B): package-level `corrects:` (the design's `requires`), and per entry `amends` and `supersedes` (`patches.md` §6). The source layer stays as the tie-break. Built with army list errata in Part B.
+
+### The tidy-up after Part A (14 Nov)
+- **Bugs fixed:**
+  - loading a test world made every draft before any was deployed, so the world draft warned about its own packages: drafts are now checked against the other drafts waiting too;
+  - tapping a test world twice queued it twice and logged its event twice: identical drafts aren't queued again, and every draft is rebuilt against the current state when it's deployed;
+  - events added to the log didn't show on World: they now do, beside world history.
+- **Display:**
+  - a **Sandbox** tab (the world's category order; each game's core, books, FAQs, house rules and campaign packages with switches; its order and pins; local packages);
+  - **Library** only shows what's shared (games with their core; packages grouped by layer);
+  - a thing lists its own links, each openable;
+  - View text is a toggle;
+  - the draft review always shows the text;
+  - **Edit as text** opens any item's text on Import, ready to change (a text import, not an editor);
+  - the Log tab explains each field, offers the kinds and roles the rules use and things to pick, and has **Correct** (withdraw and add a fixed entry);
+  - a warning when an import would move an item out of its package;
+  - a warning when a context switches on a package of another edition, or lists it under the wrong group.
+- **Migration:** Part A's stored data (IndexedDB version 2) and exported copies (version 2) are brought forward. The category order moves from the manifest to each sandbox using it; the package holding a manifest becomes its core; a context's one list is split by each package's layer. Tested from a real version 2 database.
 
 ### What Part A built
 - **Containers** (brief §2.1): the **library** and each **sandbox** are content spaces; keys are unique within a space. The **manifest** (stat order, category order per step, bag order) is content in the WFB 6th base package. A **sandbox** holds one world and its own log. A **manifest context** names its manifest and the library packages switched on in it, in order. A unit reads in its context (its own `context:`, or the sandbox's first).
@@ -37,15 +64,18 @@ Built in parts, in the brief's order (§0). **Part A is done; the build stopped 
 | No manifest found → built-in WFB orders, with a warning on the card | A sandbox still resolves while its base package is missing. |
 | Library rules may name things by bare key; a key-like name no sandbox has is accepted quietly | Library packages are world-agnostic; a sandbox may be loaded later. See question 10. |
 | Test worlds are sets of files (`test/fixtures/sets.json`), loaded as drafts and deployed in order with "Deploy all" | Imports still land in drafts first (text-format §1); later files see what earlier ones deployed. |
+| A draft is rebuilt from its own text against the current state when deployed, and when the Import tab opens | Its warnings, new / edit statuses and logged-event check are never stale. |
+| IndexedDB version 3 (same stores as 2, items reshaped in place); whole copy version 3 | The owner's Part A data comes forward on first open. |
+| A package local to a sandbox lives in that sandbox's space; it wins over a library package with the same key | Keys are unique within a space; the sandbox's own rules come first. |
 | A thing's tree walks links on at the read date, each thing once by its shortest route, at most 8 hops | Readable, and stops runaway walks in big worlds. |
 | `src/ui/tokens.css` holds every colour, type size, spacing and radius; two columns above 760px | Brief §1.6: the look iterates; world views desktop-first, lists phone-first. |
 
 ### The text shape, slice 1
-World content and rules now go in **different files**: a file starting `package:` is a library package (rules, named scopes, a manifest); a file starting `sandbox:` is a world (contexts, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.
+Three kinds of file (owner decisions of 14 Nov): `manifest:` is a game (statline, bag order, core); `package:` is a rules package (in the library, or local to a sandbox with `sandbox: key`); `sandbox:` is a world (its category order, contexts with books / faqs / house / campaign, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.
 
 ### Questions for design (slice 1)
 10. **Library rules name sandbox things by bare key.** A library rule says `reaches(nuln, …)`; each sandbox reads `nuln` in its own world. v2-reconciliation §3 says cross-namespace references carry a prefix and a bare key works inside its own namespace. Built as: bare keys in library rules resolve in the sandbox that reads them. Is that intended, or should a library rule reach world things another way (template slots, a setting package)?
-11. **Where campaign packages live.** C1's "Wissenland campaign rules" is built as a library package, switched on in E1's context. Should a campaign's own rules live in its sandbox instead (campaign-loop §12.3's "campaign-local package")? Built: packages only in the library.
+11. ~~**Where campaign packages live.**~~ **Owner decision (14 Nov):** both: in the library, or local to a sandbox. Built.
 12. **Named scopes in both places.** Built: a named scope can be in a library package (with the rules that use it) or in a sandbox. Right?
 13. **Package switches and the read date.** A switch applies at every read date (out of fiction). Should a GM be able to switch a package on from an in-world date (a campaign rule that only starts in 2524)? Today that's a rule trigger's job.
 14. **Pins across steps.** A pin between rules in different steps or target points is ignored (it can't change their order). Right?

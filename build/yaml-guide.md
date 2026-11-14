@@ -1,25 +1,38 @@
 # Writing world text: a guide
 
-How to write the YAML the app imports: the two kinds of file, every section and field, what each value means, and examples to try with their expected results.
+How to write the YAML the app imports: the three kinds of file, every section and field, what each value means, and examples to try with their expected results.
 
 The examples marked **try** are checked by a test (`test/cases/guide-examples.test.ts`), so they match what the app does.
 
-The format is a proposal (`build/build-log.md`, "The text shape"); it may change once design has reviewed it. Slice 1 changed it: world content and rules now go in **different files**.
+The format is a proposal (`build/build-log.md`, "The text shape"); it may change once design has reviewed it. Slice 1 changed it: the game, its rules and each world now go in **different files** (owner decisions of 14 Nov, `build/build-log.md`).
 
 ---
 
-## 1. Two kinds of file
+## 1. Three kinds of file
 
-Where something lives decides which file it goes in (slice 1 brief §2.1):
+Where something lives decides which file it goes in:
 
 | File starts with | It is | Holds | Deploys to |
 |---|---|---|---|
-| `package: [label, key]` | a **library package** | rules, named scopes, a manifest | the **library**: usable by any sandbox that switches it on |
-| `sandbox: [label, key]` | a **sandbox** (one world) | its contexts, things, links, units, events, and log entries | that sandbox |
+| `manifest: [label, key]` | a **game** (one per edition) | its statline, bag order, and **core** packages | the **library** |
+| `package: [label, key]` | a **rules package** | rules and named scopes, for one game | the **library**, usable by any sandbox; or, with `sandbox: key` under the header, **local to that sandbox** |
+| `sandbox: [label, key]` | a **sandbox** (one world) | its category order, the games played in it (contexts), things, links, units, events, and log entries | that sandbox |
 
-- **A package is not a scope.** A rule is in play for a unit only if its package is **switched on in the unit's context**; then the rule's scope decides which units it lands on.
+How they fit together:
+
+```
+library:   game (manifest) ── its core packages, always applied
+           rules packages:  books, FAQs, house rules, campaign packages
+sandbox:   the world (things, links, events, log) + its category order
+           └─ context (one per game played here): the game + the books, FAQs, house rules
+              and campaign packages switched on, in order
+pick-up game: a game + the packages chosen, no world at all
+```
+
+- **A package is not a scope.** A rule is in play for a unit only if its package is **switched on in the unit's context** (or is the game's core). Then the rule's scope decides which units it lands on.
 - **A library package is world-agnostic.** Its rules name things by key (`nuln`); each sandbox reads them in its own world, so two sandboxes can each have their own Nuln.
-- Putting world content in a package file (or rules in a sandbox file) is reported on that line and left out.
+- **The category order belongs to the world**, not the game: it says how places, organisations and titles stack. A pick-up game has no world, so it has no category order.
+- Something in the wrong kind of file (world content in a package, rules in a sandbox, a category order in a manifest) is reported on that line and left out.
 
 YAML basics: indentation matters (spaces, never tabs) and `#` starts a comment. **Importing never blocks**: a line with a problem is reported with its line number and left out; everything else still imports. You review the draft, then **Deploy** or **Discard**.
 
@@ -47,15 +60,28 @@ After import, the review shows **"Text with keys written back"**, with every lab
 
 **Re-importing** an item with the same key is an **edit** (or **unchanged**). A file may hold just part of a package or sandbox: the rest stays as it is.
 
-**Getting the text, and the keys, of anything deployed:** tap it on the **World** or **Library** tab. The key is shown under its name, and **View text** shows it written in this format, with **Copy**, **Export** and **Export package**.
+**Getting the text, and the keys, of anything deployed:** tap it on the **World**, **Sandbox** or **Library** tab. The key is shown under its name. **View text** shows it written in this format, with **Copy**, **Export** and **Export package**; **Edit as text** opens that text on the Import tab, ready to change and import.
 
 ---
 
-## 3. Library package files
+## 3. Games and rules packages
+
+### A game (manifest)
+
+```yaml
+manifest: [Warhammer Fantasy Battles 6th edition, wfb6]   # (label, key): one key
+stats: [M, WS, BS, S, T, W, I, A, Ld]          # the model statline, in card order
+bag_order: [set, add, multiply, cap, floor]    # the order of kinds when nothing else decides
+core: [wfb6_base]                              # its core rules packages: always applied, can't be switched off
+```
+
+The manifest is the game itself. It doesn't list books, FAQs or campaigns: each sandbox's context chooses those (§4).
+
+### A rules package
 
 ```yaml
 package: [E1 rules, e1_rules]   # (label, key)
-edition: wfb6                   # the manifest it belongs to
+edition: wfb6                   # the game it belongs to (warned if a context of another game switches it on)
 layer: book                     # book | faq | house | campaign (default book)
 requires: [wfb6_base]           # optional; a warning if one is off where this is on
 conflicts: []                   # optional; a warning if both are on
@@ -64,23 +90,9 @@ scopes:   [...]                 # named scopes (§6)
 rules:    [...]                 # rules (§5)
 ```
 
-- `layer` is the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order. A rule can override it with its own `layer:`.
-
-### A manifest
-
-A package can define the **manifest** for an edition: the statline and the default orders. They're content, not code, so a context can override them (§4).
-
-```yaml
-package: [WFB 6th edition base package, wfb6_base]
-manifest: [Warhammer Fantasy Battles 6th edition, wfb6]
-stats: [M, WS, BS, S, T, W, I, A, Ld]          # the model statline, in card order
-category_order:                                # the run order of rule categories, per step
-  origin: [place, organisation, title]
-  stationed: [place, organisation, title]
-bag_order: [set, add, multiply, cap, floor]    # the order of kinds when nothing else decides
-```
-
-Categories on the same rank go in a list: `origin: [place, [organisation, title]]`.
+- `layer` is the **source layer** of every rule in the file: `book` → `faq` → `house` → `campaign`, in that run order. A rule can override it with its own `layer:`. A context lists the package under the matching group (books, faqs, house, campaign); a mismatch is warned.
+- **Local to a sandbox:** add `sandbox: e1` under the header. The package lives with that sandbox (not in the library), and only that sandbox's contexts can switch it on. Use it for a campaign's own rules.
+- **Reusing a key moves the item.** Importing a rule or manifest with a key that's already in another package edits that item and moves it here; the review warns "this replaces … moving it here". Use a new key to add a separate one.
 
 ---
 
@@ -89,10 +101,18 @@ Categories on the same rank go in a list: `origin: [place, [organisation, title]
 ```yaml
 sandbox: [E1 Nuln, e1]
 
+category_order:                       # how places, organisations and titles stack in this world
+  origin: [place, organisation, title]
+  stationed: [place, organisation, title]
+
 contexts:
   - context: [WFB 6th, wfb6]
-    manifest: wfb6                                       # which manifest
-    packages: [wfb6_base, e1_rules, wissenland_campaign_rules]   # switched on, in order
+    manifest: wfb6                          # the game: brings its core
+    books: [e1_rules]                       # each list in order
+    faqs: []
+    house: []
+    campaign: [wissenland_campaign_rules]
+    # category_order: {...}                 # optional: overrides the world's for this game
 
 things:  [...]      # §4.1
 links:   [...]      # §4.2
@@ -101,8 +121,9 @@ events:  [...]      # world history (§7)
 log:     [...]      # entries appended to this sandbox's log on deploy (§7)
 ```
 
-- A **context** is one game system's part of the sandbox. Its `packages` are the library packages switched on in it, in order. The GM can switch one off or on later on the **Library** tab (a dated entry in the log, which can be withdrawn).
-- The GM can also change the context's **category order** and **pin** one rule before another on a unit card. Both are dated log entries.
+- **category_order**: each step lists categories in run order; categories sharing a rank go in a list: `origin: [place, [organisation, title]]`. Left out, the built-in default is place → organisation → title.
+- A **context** is one game played in the sandbox. Its lists are the packages switched on, from the library or local to this sandbox. Leave out any list it doesn't need.
+- On the **Sandbox** tab the GM can switch a package off or on, change a game's category order, and remove pins; pins are set from a unit's derivation. All of these are dated entries in the log, which can be withdrawn. The core can't be switched off.
 
 ### 4.1 Things
 
@@ -264,14 +285,16 @@ rules:
     category: place
 ```
 
-Then switch it on in E1's context: on the **Library** tab, tap **Switch on** next to Garrison pride. Or re-import the context with the package added:
+Then switch it on in E1's context: on the **Sandbox** tab, pick Garrison pride under "Switch on another package". Or re-import the context with the package added to its house rules:
 
 ```yaml try-1b
 sandbox: [E1 Nuln, e1]
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    packages: [wfb6_base, e1_rules, wissenland_campaign_rules, garrison_pride]
+    books: [e1_rules]
+    house: [garrison_pride]
+    campaign: [wissenland_campaign_rules]
 ```
 
 **Expect:** Nuln Handgunners, 2525: **Ld 8**. Origin 7 → 8 → 8. Stationed: garrison pride (house) +1 → 9, then unpaid wages (campaign) −1 → **8**: "campaign runs after house", the source layer decided it.
@@ -318,7 +341,7 @@ sandbox: [Middenheim, middenheim_world]
 contexts:
   - context: [WFB 6th, wfb6]
     manifest: wfb6
-    packages: [middenheim_rules]
+    books: [middenheim_rules]
 
 things:
   - [Middenheim, middenheim, [settlement]]
@@ -331,7 +354,7 @@ units:
       - [raised_at, middenheim]
 ```
 
-**Expect:** **S 8** (bag: add before multiply: (3 + 1) × 2) and a clash notice: "S 8 as ordered, 7 if reversed". The context names a manifest (`wfb6`) that isn't loaded unless E1 is: then the card warns and uses the built-in default orders.
+**Expect:** **S 8** (bag: add before multiply: (3 + 1) × 2) and a clash notice: "S 8 as ordered, 7 if reversed". The context names a game (`wfb6`) that isn't loaded unless E1 is: then the card warns and uses the built-in bag order. The world has no `category_order`, so the built-in one applies.
 
 ### try-4: mistakes are reported, the rest imports
 On its own.
@@ -366,4 +389,4 @@ rules:
 
 ## 9. What has no text form yet
 
-Thing attributes, switch-offs (E3), ignore rules, hook objects, `value(…)`, bases, calendars, contingents, and the army lists and rosters of slice 1 Part B (`build/army-data-request.md` sketches their shape).
+Thing attributes, switch-offs (E3), ignore rules, hook objects, `value(…)`, bases, calendars, contingents; FAQ entries tied to what they correct (`corrects`, `amends`, `supersedes`), combo packages, and the army lists and rosters of slice 1 Part B (army data: `build/army-data-request.md`).

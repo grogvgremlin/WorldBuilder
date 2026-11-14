@@ -5,19 +5,21 @@
 // content belongs to a sandbox, rules to library packages; the manifest is content).
 // The shapes are proposals, recorded in build/build-log.md and explained in build/yaml-guide.md.
 //
-// A file is one of two kinds, set by its header:
+// A file is one of three kinds, set by its header (owner decisions of 14 Nov, build log):
 //
-//   package: [E1 rules, e1_rules]           a LIBRARY package: rules, named scopes, a manifest
-//   edition: wfb6                           the manifest it belongs to
-//   layer: book                             source layer of its rules (default book)
-//   requires: [wfb6_base]   conflicts: []   warnings only
-//   manifest: [WFB 6th edition, wfb6]       optional: this package defines a manifest, with
-//   stats: [M, WS, ...]  category_order: {origin: [...], stationed: [...]}  bag_order: [...]
+//   manifest: [WFB 6th edition, wfb6]       a GAME (library): its statline, bag order, core
+//   stats: [M, WS, ...]   bag_order: [set, add, multiply, cap, floor]   core: [wfb6_base]
+//
+//   package: [E1 rules, e1_rules]           a rules PACKAGE: in the library, or local to a
+//   sandbox: e1                             sandbox when it names one
+//   edition: wfb6   layer: book   requires: [...]   conflicts: [...]
 //   scopes:   - scope: [label, key]  query: reaches(...)
 //   rules:    - rule: [label, key]  effect: [Ld, +1]  scope: ...  trigger: ...  nature  category
 //
 //   sandbox: [E1 Nuln, e1]                  a SANDBOX: one world and its log
-//   contexts: - context: [WFB 6th, wfb6]  manifest: wfb6  packages: [wfb6_base, e1_rules]
+//   category_order: {origin: [place, organisation, title], stationed: [...]}
+//   contexts: - context: [WFB 6th, wfb6]  manifest: wfb6  books: [...]  faqs: [...]
+//               house: [...]  campaign: [...]  category_order: {...} (optional)
 //   things:   - [Nuln, nuln, [settlement, polity]]          (label, key, kinds)
 //   links:    - [nuln, in, wissenland, 2000]                 (from, kind, to, start, end)
 //   units:    - unit: [label, key]  raised: 2520  context: wfb6  profile: [...]  links: [...]
@@ -26,7 +28,7 @@
 //   scopes:   as above (a named scope can live with the world too)
 
 import { isMap, isSeq, LineCounter, parseDocument, type Node as YamlNode, type YAMLMap } from "yaml";
-import type { CategoryRanks, ContentItem, EditKind, EventRecord, Expression, ManifestContext, Problem, SourceLayer } from "../schema";
+import { CONTEXT_GROUPS, type CategoryRanks, type ContentItem, type EditKind, type EventRecord, type Expression, type ManifestContext, type Problem, type SourceLayer, type StepOrders } from "../schema";
 import { conditionRefs, expressionToText, parseExpression } from "./expression-text";
 import {
   DEFAULT_STAT_ORDER,
@@ -43,7 +45,7 @@ import {
 
 export { slugify, DEFAULT_STAT_ORDER } from "./text-values";
 
-export type FileKind = "package" | "sandbox";
+export type FileKind = "package" | "sandbox" | "manifest";
 
 // One item read from the text, with the line it started on. Its space is filled in later.
 export interface ParsedItem {
@@ -91,6 +93,8 @@ export interface ParsedText {
   edition: string | null;
   requires: string[];
   conflicts: string[];
+  homeSandbox: string | null; // a package local to a sandbox
+  categoryOrder: StepOrders | null; // a sandbox's own category order
   items: ParsedItem[];
   logEvents: ParsedLogEvent[];
   headersNeedingKeys: HeaderNeedingKey[];
@@ -101,8 +105,10 @@ export interface ParsedText {
 // The stat order for a profile written as a list, for a unit in a given context.
 export type StatOrderFor = (contextKey: string | null, contextsInFile: ManifestContext[]) => string[];
 
-const PACKAGE_SECTIONS = new Set(["package", "edition", "layer", "requires", "conflicts", "manifest", "stats", "category_order", "bag_order", "scopes", "rules"]);
-const SANDBOX_SECTIONS = new Set(["sandbox", "contexts", "things", "links", "units", "events", "log", "scopes"]);
+const MANIFEST_SECTIONS = new Set(["manifest", "stats", "bag_order", "core"]);
+const PACKAGE_SECTIONS = new Set(["package", "sandbox", "edition", "layer", "requires", "conflicts", "scopes", "rules"]);
+const SANDBOX_SECTIONS = new Set(["sandbox", "category_order", "contexts", "things", "links", "units", "events", "log", "scopes"]);
+const SECTIONS: Record<FileKind, Set<string>> = { manifest: MANIFEST_SECTIONS, package: PACKAGE_SECTIONS, sandbox: SANDBOX_SECTIONS };
 
 // --- Reading the whole text -------------------------------------------------------------------
 
@@ -119,6 +125,8 @@ export function readText(text: string, fallbackLabel: string, statOrderFor: Stat
     edition: null,
     requires: [],
     conflicts: [],
+    homeSandbox: null,
+    categoryOrder: null,
     items: [],
     logEvents: [],
     headersNeedingKeys: [],
@@ -131,12 +139,16 @@ export function readText(text: string, fallbackLabel: string, statOrderFor: Stat
   }
   const root = doc.contents;
   if (!isMap(root)) {
-    reader.problem(root as YamlNode, "error", "the text should be a YAML map, starting `package:` or `sandbox:`");
+    reader.problem(root as YamlNode, "error", "the text should be a YAML map, starting `manifest:`, `package:` or `sandbox:`");
     return parsed;
   }
 
   readFileHeader(root, reader, parsed);
-  const allowed = parsed.fileKind === "package" ? PACKAGE_SECTIONS : SANDBOX_SECTIONS;
+  const allowed = SECTIONS[parsed.fileKind];
+  if (parsed.fileKind === "manifest") guard(reader, root, () => readManifest(root, reader, parsed));
+  if (parsed.fileKind === "sandbox" && root.get("category_order", true)) {
+    parsed.categoryOrder = readStepOrders(root.get("category_order", true), reader);
+  }
 
   // Contexts first, so units can find their manifest's stat order.
   const contextsNode = root.get("contexts", true);
@@ -172,9 +184,6 @@ export function readText(text: string, fallbackLabel: string, statOrderFor: Stat
       case "log":
         items.forEach((node) => guard(reader, node, () => readEvent(node, reader, parsed, true)));
         break;
-      case "manifest":
-        guard(reader, pair.value, () => readManifest(root, reader, parsed));
-        break;
       default:
         break; // header fields, read above
     }
@@ -183,10 +192,16 @@ export function readText(text: string, fallbackLabel: string, statOrderFor: Stat
 }
 
 function reportMisplaced(section: string, node: YamlNode, fileKind: FileKind, reader: Reader): void {
-  if (fileKind === "package" && SANDBOX_SECTIONS.has(section)) {
+  if (fileKind === "package" && section === "manifest") {
+    reader.problem(node, "error", "a manifest is a file of its own: start it `manifest: [label, key]`, with stats, bag_order and core");
+  } else if (fileKind === "manifest" && section === "category_order") {
+    reader.problem(node, "error", "the category order belongs to the world: put it in a sandbox file (or a context)");
+  } else if (fileKind !== "sandbox" && SANDBOX_SECTIONS.has(section)) {
     reader.problem(node, "error", "“" + section + "” is world content: it belongs in a sandbox file (start it `sandbox: [label, key]`)");
-  } else if (fileKind === "sandbox" && PACKAGE_SECTIONS.has(section)) {
-    reader.problem(node, "error", "“" + section + "” belongs in a library package file (start it `package: [label, key]`), switched on in a context");
+  } else if (fileKind !== "package" && PACKAGE_SECTIONS.has(section)) {
+    reader.problem(node, "error", "“" + section + "” belongs in a rules package file (start it `package: [label, key]`), switched on in a context");
+  } else if (fileKind !== "manifest" && MANIFEST_SECTIONS.has(section)) {
+    reader.problem(node, "error", "“" + section + "” belongs in a manifest file (start it `manifest: [label, key]`)");
   } else {
     reader.problem(node, "warning", "unknown section “" + section + "” ignored");
   }
@@ -201,11 +216,22 @@ function guard(reader: Reader, node: unknown, read: () => void): void {
   }
 }
 
+// manifest: …  -> a game. package: … (with an optional `sandbox: key`) -> a rules package.
+// sandbox: … alone -> a sandbox.
 function readFileHeader(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
   const packageNode = root.get("package", true);
   const sandboxNode = root.get("sandbox", true);
-  if (packageNode && sandboxNode) reader.problem(sandboxNode as YamlNode, "error", "a file is a package or a sandbox, not both: the sandbox header is ignored");
-  parsed.fileKind = sandboxNode && !packageNode ? "sandbox" : "package";
+  const manifestNode = root.get("manifest", true);
+  parsed.fileKind = packageNode ? "package" : sandboxNode ? "sandbox" : manifestNode ? "manifest" : "package";
+  if (parsed.fileKind === "manifest") {
+    // The manifest is the file's one item; its header is read with it (readManifest).
+    const header = readHeader(manifestNode, reader, "manifest");
+    if (header) {
+      parsed.headerLabel = header.label;
+      parsed.headerKey = header.key;
+    }
+    return;
+  }
   const headerNode = parsed.fileKind === "sandbox" ? sandboxNode : packageNode;
   if (headerNode) {
     const header = readHeader(headerNode, reader, parsed.fileKind);
@@ -216,6 +242,12 @@ function readFileHeader(root: YAMLMap, reader: Reader, parsed: ParsedText): void
     }
   }
   if (parsed.fileKind === "sandbox") return;
+
+  // A package naming a sandbox is local to it (a campaign's own rules).
+  if (sandboxNode) {
+    parsed.homeSandbox = textOf(sandboxNode);
+    if (!parsed.homeSandbox) reader.problem(sandboxNode as YamlNode, "error", "`sandbox:` in a package file is the key of the sandbox it belongs to");
+  }
 
   const layerNode = root.get("layer", true);
   const layer = textOf(layerNode);
@@ -262,38 +294,38 @@ function readRanks(node: unknown, reader: Reader): CategoryRanks | null {
   return node.items.map((entry) => (isSeq(entry) ? wordsOf(entry) : [textOf(entry) ?? ""]));
 }
 
+function readStepOrders(node: unknown, reader: Reader): StepOrders | null {
+  if (!isMap(node)) {
+    reader.problem(node as YamlNode, "error", "category_order needs origin and stationed lists");
+    return null;
+  }
+  const origin = readRanks(node.get("origin", true), reader);
+  const stationed = readRanks(node.get("stationed", true), reader);
+  return origin && stationed ? { origin, stationed } : null;
+}
+
+// A manifest file: the game's statline, how it combines numbers, and its core packages.
 function readManifest(root: YAMLMap, reader: Reader, parsed: ParsedText): void {
   const header = readHeader(root.get("manifest", true), reader, "manifest");
   if (!header) return;
   const stats = wordsOf(root.get("stats", true));
-  const orders = root.get("category_order", true);
-  const origin = isMap(orders) ? readRanks(orders.get("origin", true), reader) : null;
-  const stationed = isMap(orders) ? readRanks(orders.get("stationed", true), reader) : null;
   const bag = wordsOf(root.get("bag_order", true)) as EditKind[];
-  if (stats.length === 0) reader.problem(header.node, "error", "a manifest needs its stats: [M, WS, BS, S, T, W, I, A, Ld]");
-  if (!origin || !stationed) reader.problem(header.node, "error", "a manifest needs category_order with origin and stationed");
+  if (stats.length === 0) {
+    reader.problem(header.node, "error", "a manifest needs its stats: [M, WS, BS, S, T, W, I, A, Ld]");
+    return;
+  }
   const kinds: EditKind[] = ["set", "add", "multiply", "cap", "floor"];
   if (bag.length !== kinds.length || !kinds.every((k) => bag.includes(k))) {
     reader.problem(header.node, "error", "bag_order should list set, add, multiply, cap and floor once each");
     return;
   }
-  if (stats.length === 0 || !origin || !stationed) return;
-  if (!parsed.edition) parsed.edition = header.key ?? null;
-  addItem(
-    parsed,
-    header,
-    {
-      class: "manifest",
-      key: header.key ?? "",
-      label: header.label,
-      space: "",
-      package: null,
-      statOrder: stats,
-      categoryOrder: { origin, stationed },
-      bagOrder: bag,
-    },
-    reader.lineOf(header.node),
-  );
+  const manifest: ContentItem = { class: "manifest", key: header.key ?? "", label: header.label, space: "", package: null, statOrder: stats, bagOrder: bag, core: [] };
+  addItem(parsed, header, manifest, reader.lineOf(header.node));
+  listOf(root.get("core", true)).forEach((node, i) => {
+    if (manifest.class !== "manifest") return;
+    manifest.core.push(textOf(node) ?? "");
+    addRef(parsed, reader, node, "package", "core", (key) => (manifest.core[i] = key));
+  });
 }
 
 // Reads a condition and registers every name in it for matching.
@@ -374,7 +406,7 @@ function readRule(node: unknown, reader: Reader, parsed: ParsedText): void {
 
 function readContext(node: unknown, reader: Reader, parsed: ParsedText): void {
   if (!isMap(node)) {
-    reader.problem(node as YamlNode, "error", "a context should be a map: context, manifest, packages");
+    reader.problem(node as YamlNode, "error", "a context should be a map: context, manifest, books, faqs, house, campaign");
     return;
   }
   const header = readHeader(node.get("context", true), reader, "context");
@@ -385,14 +417,31 @@ function readContext(node: unknown, reader: Reader, parsed: ParsedText): void {
     reader.problem(node, "error", "context “" + header.label + "” needs a manifest: wfb6");
     return;
   }
-  const context: ManifestContext = { class: "context", key: header.key ?? "", label: header.label, space: "", package: null, manifest, packages: [] };
+  if (node.get("packages", true)) {
+    reader.problem(node.get("packages", true) as YamlNode, "error", "list a context's packages as books, faqs, house and campaign (the manifest brings its core)");
+  }
+  const orderNode = node.get("category_order", true);
+  const context: ManifestContext = {
+    class: "context",
+    key: header.key ?? "",
+    label: header.label,
+    space: "",
+    package: null,
+    manifest,
+    books: [],
+    faqs: [],
+    house: [],
+    campaign: [],
+    categoryOrder: orderNode ? readStepOrders(orderNode, reader) : null,
+  };
   addItem(parsed, header, context, reader.lineOf(node));
   addRef(parsed, reader, manifestNode, "manifest", "context manifest", (key) => (context.manifest = key));
-  const packagesNode = node.get("packages", true);
-  listOf(packagesNode).forEach((packageNode, i) => {
-    context.packages.push(textOf(packageNode) ?? "");
-    addRef(parsed, reader, packageNode, "package", "context packages", (key) => (context.packages[i] = key));
-  });
+  for (const { field } of CONTEXT_GROUPS) {
+    listOf(node.get(field, true)).forEach((packageNode, i) => {
+      context[field].push(textOf(packageNode) ?? "");
+      addRef(parsed, reader, packageNode, "package", "context " + field, (key) => (context[field][i] = key));
+    });
+  }
 }
 
 // Things: [label, key, kinds]. Kinds may be a list or words separated by spaces.

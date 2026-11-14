@@ -97,6 +97,8 @@ function addContentItem(world: World, item: ContentItem): void {
       world.scopes.set(item.key, item);
       break;
     case "package":
+      // A package local to the sandbox wins over a library package with the same key.
+      if (world.packages.get(item.key)?.space !== "library" && world.packages.has(item.key)) break;
       world.packages.set(item.key, item);
       break;
     case "manifest":

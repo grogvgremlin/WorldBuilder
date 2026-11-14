@@ -1,0 +1,7 @@
+# WFB 6th edition: the game itself (design/manifest.md §1–2). Its statline, how it combines
+# numbers, and its core package. No category order: that belongs to the world (owner, 14 Nov).
+
+manifest: [Warhammer Fantasy Battles 6th edition, wfb6]
+stats: [M, WS, BS, S, T, W, I, A, Ld]
+bag_order: [set, add, multiply, cap, floor]
+core: [wfb6_base]

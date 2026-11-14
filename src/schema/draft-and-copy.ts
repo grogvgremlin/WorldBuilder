@@ -58,7 +58,7 @@ export type Meta = z.infer<typeof Meta>;
 // The whole copy, as exported and re-imported. One log per sandbox, keyed by sandbox key.
 export const WholeCopy = z.object({
   format: z.literal("worldbuilder-copy"),
-  version: z.literal(2),
+  version: z.literal(3),
   exportedTime: z.string(),
   meta: Meta,
   logs: z.record(z.string(), z.array(LogEnvelope)),
@@ -66,6 +66,18 @@ export const WholeCopy = z.object({
   drafts: z.array(DraftBatch),
 });
 export type WholeCopy = z.infer<typeof WholeCopy>;
+
+// Slice 1 Part A's copy (12 Nov), read only to bring it forward. Items are loose on purpose.
+export const WholeCopyV2 = z.object({
+  format: z.literal("worldbuilder-copy"),
+  version: z.literal(2),
+  exportedTime: z.string(),
+  meta: Meta,
+  logs: z.record(z.string(), z.array(LogEnvelope)),
+  content: z.array(z.record(z.string(), z.unknown())),
+  drafts: z.array(z.unknown()),
+});
+export type WholeCopyV2 = z.infer<typeof WholeCopyV2>;
 
 // Slice 0's copy, read only to bring it forward (store/migrate.ts). Items are loose on purpose.
 export const WholeCopyV1 = z.object({
