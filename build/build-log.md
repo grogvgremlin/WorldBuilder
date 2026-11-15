@@ -14,6 +14,11 @@ Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up, ho
 | **B** Army list and roster builder | Waiting on army data. Also in Part B: FAQs tied to what they correct (owner decision 5 above). **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
 
+### Queued for the next build (owner, 15 Nov)
+
+1. **A performance check in the tests.** The synthetic-world benchmark (place tree, guilds, a money chain, units across contexts) becomes part of `npm test`, with generous time budgets, plus `npm run bench` to print the full table. Results are kept per stage, so propagation (mediums) is checked as it's built, not rebuilt later. First measurements: every unit at 500 units / 100 rules takes 0.7 s (after the link index); one unit 16 ms; importing 11,400 things in one file 55 s.
+2. **Index the import's checks.** Label matching (`pool`, `assignKeys`), move warnings and container lookups scan all content for every reference, so a large import grows with the square of its size. Look them up by key and label instead.
+
 ### Owner points, 15 Nov: campaign rules, and seeing the whole story
 
 1. **Rules that name world things are campaign rules.** E1's rules name Nuln, the Gunnery School and the Wissenland treasury, so they can't be core or book: they "connect to world things and therefore by definition fall into campaign". Built: the E1, E2 and E4 rules packages are `layer: campaign` and listed under the context's `campaign` (values unchanged; E1, E2, E4, C1, C2 still pass). A package of layer book or FAQ (or with no layer, which defaults to book) whose rules name a world thing or hook gets the warning "names world things: … belongs in a campaign package". House rules are left alone (try-1's garrison rule is a house rule that names Nuln). See question 15.
