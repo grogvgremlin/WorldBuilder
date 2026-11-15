@@ -99,6 +99,7 @@ From the owner's checks of Part A on the phone and desktop. **To carry back to t
 | A thing's **network** (Connected, reaches, reached from) is read at the card's read date; inward routes are written from the far end, as the other thing's condition would write them | A route is only useful if it can be pasted into a condition. |
 | Unknown link kinds in a library rule are warned per context (Sandbox tab), not at import | A library rule doesn't know its world until a context switches it on; warning at import would flag every rule loaded before its world. |
 | "Names world things" counts things and hooks in the rule's scope and trigger, not what a named scope names | Keeps the check to what the rule itself writes. |
+| A route step looks up the links out of a thing by (from, kind) in an index built once per world, instead of scanning every link | Measured 15 Nov on a synthetic world (2,900 things, 5,600 links, 500 units, 100 rules): every unit 5.9 s → 0.7 s, one unit 49 → 16 ms. Same results; the 86 tests pass. |
 
 ### The text shape, slice 1
 Three kinds of file (owner decisions of 14 Nov): `manifest:` is a game (statline, bag order, core); `package:` is a rules package (in the library, or local to a sandbox with `sandbox: key`); `sandbox:` is a world (its category order, contexts with books / faqs / house / campaign, things, links, units, events, log). References may be labels. Full description and tested examples: **`build/yaml-guide.md`**. The slice 0 section below is kept as history.

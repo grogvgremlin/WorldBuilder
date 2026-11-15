@@ -261,12 +261,22 @@ function nextStates(world: World, state: WalkState, via: RouteStep[], when: "as_
 }
 
 function linksFromAt(world: World, from: string, kind: string, when: "as_of" | "ever", date: number): Link[] {
-  return world.links.filter(
-    (link) =>
-      link.from === from &&
-      link.kind === kind &&
-      (when === "as_of" ? isOnAt(link, date) : wasEverOnBy(link, date)),
-  );
+  return linksFrom(world, from, kind).filter((link) => (when === "as_of" ? isOnAt(link, date) : wasEverOnBy(link, date)));
+}
+
+// The links out of a thing of one kind, looked up rather than scanned (built once per world).
+const LINK_INDEX = new WeakMap<World, Map<string, Link[]>>();
+function linksFrom(world: World, from: string, kind: string): Link[] {
+  let index = LINK_INDEX.get(world);
+  if (!index) {
+    index = new Map();
+    for (const link of world.links) {
+      const key = link.from + "|" + link.kind;
+      index.set(key, [...(index.get(key) ?? []), link]);
+    }
+    LINK_INDEX.set(world, index);
+  }
+  return index.get(from + "|" + kind) ?? [];
 }
 
 function matchesTarget(world: World, key: string, target: ReachTarget): boolean {
