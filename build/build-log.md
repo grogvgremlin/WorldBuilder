@@ -124,10 +124,7 @@ Built the way described; each is beyond the design docs as they stand.
 22. **Crew rules** turn a crew of 3 into the printed card line (W 3, A 3). The design has crew as profiles with a count; the pooling rule is new.
 23. **Role vs slot** for the Battle Standard Bearer (the design: the BSB is a role, `races-and-units.md` §6); built as a slot via Core Common Links, as the owner prefers.
 24. **Book group names** ("Commanders of the Empire only" on the Dragon Bow) need a way to name a group of entries. Not built yet.
-25. **Where a roster lives, and how it meets a world (owner, 21 Nov: "how to marry a roster to a sandbox, context, raise at a particular place vs at the world level vs empty sandbox, in-world pick-up vs campaign").**
-    - Built today: a **practice** roster (no world; it reads its army list and what that needs) and a **registered** roster (each unit becomes a world unit in a sandbox and context, linked from a raising date).
-    - Every change saves as it's made; the screen now says "Saved" (or why not).
-    - Open: a pick-up game *in* a world (reading the context's packages and world rules, nothing registered or logged); raising at a place vs at world level; a roster in an empty sandbox; campaign rosters that change over time. Put to the owner; not built.
+25. **Where a roster lives, and how it meets a world.** Answered by the owner on 21 Nov (decision 29). Still open: rosters across places (tied to campaign mechanics), and whether a case-2 roster can be turned into a registered one. Proposed yes, not confirmed.
 
 #### For the design project's registers
 - **Techniques used:**
@@ -157,6 +154,15 @@ Built the way described; each is beyond the design docs as they stand.
   - the importer's own tests;
   - the whole private Empire imports with no errors and no warnings beyond the rulebook stubs (`test/private/`, run only where the data repo is checked out).
 - **Not built (brief §3.2, unchanged):** magic item allowances (shown, not picked), mounts' bonuses to riders as numbers, the crew rule's pooling (the crew shows as one crewman ×3), draws, inventory, locks, fixes, the card edit form (later, owner 21 Nov).
+
+29. **A pick-up game has three homes** (owner, 21 Nov), plus the registered roster, which is a world's own army and not a pick-up game:
+    1. **A blank sandbox:** choose a game (its core always on), then your books, FAQs and house rules, then build the list. It is a game context with no world. Today's practice roster reads only the army list and what that needs; this replaces that.
+    2. **A "what if" army in a world that's already running:**
+       - it reads that world's context and the world rules that reach a chosen place at a chosen date, as if the units were raised there;
+       - it writes nothing to the world or its logs (derived on read; the roster keeps its sandbox, context, place and date);
+       - a neutral or made-up place means no world rules, only the context's packages;
+       - per-unit places waits for campaign mechanics.
+    3. **Borrowed units:** units already registered in a world, as they stand at a date, taken into a one-off game that isn't part of the story. Nothing from the game is logged back.
 
 #### Owner note, 21 Nov: loading and contexts, for later usability work
 - **The end state:** everything is *loaded* into the library first. Creating a context by choosing a game switches on its core package automatically, and shows the packages that can be switched on for that game. This is roughly how the app works now; what needs work is how it feels to use.
