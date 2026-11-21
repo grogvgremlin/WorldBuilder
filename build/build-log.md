@@ -11,7 +11,7 @@ Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up, ho
 | Part | State |
 |---|---|
 | **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container (manifest, core, rules, world, log). **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
-| **B** Army list and roster builder | **Started 21 Nov.** Army data: TOW Empire (owner decisions 15–21 Nov, below). The input format is the owner's spreadsheet (CSV / `.xlsx` / YAML / JSON). Also in Part B: FAQs tied to what they correct (owner decision 5 of 14 Nov). |
+| **B** Army list and roster builder | ✓ **L1**, **L2**, **L3 (a, b)** (`test/cases/l1-…`, `l2-…`, `l3-…`); L3 (c, d) wait for the O&G pages. Round trip ✓ with rosters. The owner's sheets import (CSV / `.xlsx` / YAML / JSON) with a read-back to sign off; Rosters tab. **Not yet:** FAQs tied to what they correct (owner decision 5 of 14 Nov), carried to the next part. |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
 
 ### Slice 1, Part B: owner decisions and the army-list input format (15–21 Nov 2026)
@@ -111,6 +111,40 @@ Built the way described; each is beyond the design docs as they stand.
   - read everything, resolve across the whole upload, then report.
 - **Techniques rejected:** averaging profiles to find a race base (leaves a delta on everything); parsing the book's sentences directly (the user types the shape).
 - **Links:** none new.
+
+#### What Part B built (21 Nov)
+- **The importer** for the owner's sheets: CSV files, an `.xlsx` workbook, or the same as YAML / JSON. Sheets are recognised by their headers. Everything is read first, names are resolved across the upload and what's deployed, then problems are reported. Unknown names become stubs (listed, flagged incomplete), plurals match, aliases and Match Keys work, and fit on import suggests a race cell.
+- **The review:** every card read back like the book entry (stats including champion and mount rows; troop type, base, size, equipment; options in the book's words; special rules), then its derivation, then warnings. **Each card is signed off before deploy.**
+- **Cards worked out on read:**
+  - Link Key inheritance (`+`, same name, `None`, `-X`);
+  - each row's line from its race cell + its equipment's statline effects + as printed, with the stored delta shown;
+  - slot rows as the unit's line + the slot's delta;
+  - mounts from their own cards;
+  - crew and steeds counted through Slots;
+  - limits, and "cavalry requires a mount".
+- **Rosters:** practice (outside every sandbox, nothing logged) and registered (each unit a world unit with its links from a raising date). Points per unit with a breakdown; totals per category against the list's percentages of the target; issues for composition rows (including cross-entry ones), per-1,000 limits (army rows win over a unit's own), sizes, compulsory groups, the General. A unit registered from a roster reads its **army-list base first**, then the world rules (L2).
+- **Text:** a roster as YAML and back; an army package back out as CSV or YAML, re-importing unchanged.
+- **Screens:** Import → Army sheets (and the fixture army as two buttons); a **Rosters** tab, phone-first; the unit card shows the army-list base steps.
+- **Tests:**
+  - L1 ✓, L2 ✓, L3 (a), (b) ✓; L3 (c), (d) to do (the O&G pages);
+  - round trip with rosters ✓ (both stores);
+  - the importer's own tests;
+  - the whole private Empire imports with no errors and no warnings beyond the rulebook stubs (`test/private/`, run only where the data repo is checked out).
+- **Not built (brief §3.2, unchanged):** magic item allowances (shown, not picked), mounts' bonuses to riders as numbers, the crew rule's pooling (the crew shows as one crewman ×3), draws, inventory, locks, fixes, the card edit form (later, owner 21 Nov).
+
+#### Technical choices (Part B)
+| Choice | Why |
+|---|---|
+| Army content stored as entered: every cell as typed, by column; parsing, inheritance and lines derived on read | The stored truth stays what the owner typed; an export gives it back exactly; a better reader never needs a migration. |
+| `.xlsx` read by a small reader of our own (zip directory + `DecompressionStream("deflate-raw")` + the sheet XML), no library | About 150 lines; avoids the npm `xlsx` package's old, advised-against releases. Formulas read as their saved value. |
+| A workbook's sheets are kept in the draft as CSV | The draft can be rebuilt against what's deployed now (like a text draft), whatever the upload's format. |
+| Keys: a card is `package.unit` (`the_empire_of_man.state_troops`); other army items carry a kind prefix (`kit.`, `race.`, `link.`, `rule.`) | Keys are unique within a space: a weapon and the card it's named after (Helblaster Volley Gun) mustn't collide. Never typed by the user. |
+| A weapon's numbers (Type `weapon`) don't change the bearer's line; other kit's statline cells do (barding M −1) | The owner's sheet uses the S column for a weapon's bonus (great weapon S +1) and the M column for barding's effect on the horse. |
+| A race cell written as deltas adds to the same tree's Base cell, else Core · Base | The owner's sample writes Professional · Veteran as "WS +1"; either reading gives the same line there. |
+| Stubs are listed and flagged, not made into items | Nothing half-made is stored; when the rulebook is entered, the names simply match. |
+| Fit on import: the cells needing the fewest stored deltas, then the smallest; skipped for engines (more than one "-") | War machines and chariots have no race on purpose. |
+| An option is picked by its name, or by name + "instead of …" where two share a name | Empire Knights have two "Great Weapons" options (as well as / instead of the shield). |
+| A practice roster lives in the space `practice`, which no sandbox reads | Brief §1.3: not registered, nothing logged. |
 
 ### Queued for the next build (owner, 15 Nov)
 

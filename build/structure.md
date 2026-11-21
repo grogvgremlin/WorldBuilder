@@ -35,13 +35,31 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `src/import/read-back.ts` | Plain-English read-backs of edits, conditions and rules | `text-format-and-csv.md` §4; `rules-overlay.md` §17 |
 | `src/import/draft.ts` | Text → draft (keys matched and written back, labels matched to keys, checked against drafts waiting, moves warned, review status) → refreshed and deployed to the library or a sandbox, or discarded | `text-format-and-csv.md` §1, §3, §6, §8; `infra.md` §1–2; brief §2.1, §2.3 |
 
+## Army lists and rosters (`src/army/`, Part B; pure except `register.ts`)
+
+| Module | Does | Design |
+|---|---|---|
+| `src/schema/army.ts` | Army content stored **as entered** (every cell by its column): race cells, equipment, common links, special rule texts, cards (Unit = the card, its rows), army lists (composition rows); rosters (choices only; practice or registered) | `army-lists.md` §1–3; `races-and-units.md` §2, §4–6; `rosters.md` §1–3; build-log Part B decisions 5, 12 |
+| `src/army/cells.ts` | One cell: splitting at the top level, stats (`4`, `+1`, `-`, `(+1)`), costs (`21~pi`, `+6`), sizes (`10-`, `0-1`, `>=10`, `1 per (X)`), names | `text-format-and-csv.md` §2; owner's Schemae and Glossary |
+| `src/army/options.ts` | The expression cells: Equipment / Rules Options (`[A OR B;Mandatory]`, `add`, `replace~X`, budgets, `[ ]` grants, `+X`, `None`, `-X`), Slots, Unit Limit | `options-items-and-rules.md` §1; `army-lists.md` §3; build-log Part B decisions 13–16 |
+| `src/army/sheets.ts`, `src/army/xlsx.ts` | Reading CSV, a workbook, YAML or JSON into rows; recognising a sheet by its headers (matched like labels); writing CSV; the YAML form of cards | `text-format-and-csv.md` §7; build-log Part B decisions 5–6 |
+| `src/army/library.ts` | The army content in reach, by name; matching a name (exact, alias, trailing-"s" plural); finding a race cell (blank Tree = Core, blank Rank = Base) | `text-format-and-csv.md` §3; build-log Part B decisions 3, 8–9 |
+| `src/army/card.ts` | A card worked out: Link Key inheritance; each row's line from race cell + equipment effects + as printed (stored delta); slot rows from the unit line; mounts; options, slots, limits; stubs; "cavalry requires a mount" | `races-and-units.md` §1–2, §4–6; build-log Part B decisions 3–4, 12–13, 16–18 |
+| `src/army/fit.ts` | Fit on import: the race cell closest to a printed line | `races-and-units.md` §2; build-log Part B decision 10 |
+| `src/army/import-sheets.ts` | Sheets → a draft (cards, lists, races, kit, links, rule texts), checked across the whole upload and what's deployed; rebuilt from the sheets kept as CSV | `text-format-and-csv.md` §1, §3, §7–8 |
+| `src/army/read-back.ts` | A card read back like the book (stats with champion and mount rows, facts, options in the book's words, special rules), then its derivation, then warnings | build-log Part B decision 7; `rules-overlay.md` §13 |
+| `src/army/roster.ts` | A roster worked out: points per unit with a breakdown, totals by category against the list's limits, issues (composition, per-1,000 limits, sizes, compulsory picks, the General) | `rosters.md` §1–3, §5; `army-lists.md` §3; `validation-and-fixes.md` §1–2 |
+| `src/army/registered.ts` | A unit registered from a roster: its base line from the army list, with how it was made | brief §3.1, §3.3 L2 |
+| `src/army/register.ts` | Saving a practice roster (outside every sandbox) or registering one in a sandbox (world units with links from the raising date). Writes content only, never the log | brief §1.3, §3.1; `world-structure.md` §12 |
+| `src/army/roster-text.ts` | A roster as YAML and back; an army package back out as its sheets (CSV) or their YAML form | brief §3.1; `text-format-and-csv.md` §6 |
+
 ## Screens (`src/ui/`, thin)
 
 | Module | Does | Design |
 |---|---|---|
 | `main.tsx` | Opens storage, registers the service worker, renders | slice 0 brief §1.1 |
 | `app-data.ts` | Every operation the screens need, over the storage seam; the open sandbox | brief §2.1 |
-| `App.tsx` | Tabs: World, Sandbox, Library, Import, Log, Data; the sandbox switch; a back stack of opened items; Edit as text hands text to Import | brief §1.4, §2.1 |
+| `App.tsx` | Tabs: World, Rosters, Sandbox, Library, Import, Log, Data; the sandbox switch; a back stack of opened items; Edit as text hands text to Import | brief §1.4, §2.1 |
 | `item-ref.ts` | Points at an item by space and key | brief §2.1 |
 | `tokens.css`, `styles.css` | Design tokens (every colour, type size, spacing, radius); layout built only from them | brief §1.6 |
 | `screens/WorldScreen.tsx` | The open sandbox: units, rules in play, named scopes in play, **events** (world history and recorded ones; record, correct, withdraw), **hooks** (state at a read date, what they read, rules on them; make an auto hook a world hook), every link grouped by kind, things grouped by kind; rules in play with their text folded under each | `world-structure.md` §2–3, §7; `rules-overlay.md` §5; brief §2.3; owner decisions of 15 Nov |
@@ -50,6 +68,9 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `screens/ItemScreen.tsx` | Any item in words plus its text; a thing's network at a date and its own links; a hook in plain words; a package's rules with their text; a rule's units at a date and the "why not?" finder | `rules-overlay.md` §9, §13; brief §2.3 |
 | `screens/UnitScreen.tsx` | Unit card with a read date; its network; derivation with pin / swap; "why not?" tree per rule; logged events to withdraw or add again | `rules-overlay.md` §12–13; brief §1.1–1.2 |
 | `screens/ImportScreen.tsx` | Paste, open a file, edit an item's text, or load a test world (as drafts, not twice) → review with the text → deploy one, or deploy all in order; "What can I write?" | `text-format-and-csv.md` §8; brief §7 |
+| `screens/RostersScreen.tsx` | The roster builder (phone-first): new roster from an army list, add units by category, size, command and options, the General; totals by category against the limits; issues; each unit's card; the roster as text; register in the open sandbox | brief §1.3, §1.6, §3.1; `rosters.md` §1–3 |
+| `screens/ArmySheets.tsx` | Army sheets on Import (files, game, package; the fixture army) and their review: every card read back to sign off before deploy | `text-format-and-csv.md` §7–8; build-log Part B decision 7 |
+| `components/ArmyCardView.tsx` | A card like the book's entry, the derivation folded, warnings | build-log Part B decision 7 |
 | `screens/LogScreen.tsx` | The open sandbox's record only: every entry in order, in words, filterable; withdraw | `infra.md` §1–2, §8; owner decisions of 15 Nov |
 | `screens/DataScreen.tsx` | Export, import (slice 0 copies migrated) and wipe the whole copy; storage status | CLAUDE.md "No server yet" |
 | `save-file.ts` | Hands the viewer a file: the share sheet on iPhone, else a download | CLAUDE.md "No server yet" |
@@ -77,6 +98,13 @@ Each module, what it does, and the design doc and section it implements. Every s
 | `test/unit/store-contract.test.ts` | Both stores behave the same (logs per sandbox, content by space) |
 | `test/unit/migrate.test.ts` | Slice 0 and Part A data and copies brought forward; IndexedDB upgraded in place from versions 1 and 2 |
 | `test/unit/hooks.test.ts` | Hooks as world items; triggers on hooks; inline triggers making hooks; missing hooks; hooks only in sandbox files; triggers by label |
+| `test/cases/l1-practice-roster.test.ts` | L1 (as built for TOW): a practice roster; points per unit and category; one limit broken; Ld 7; nothing logged |
+| `test/cases/l2-registered-roster.test.ts` | L2: the same units registered in E1's sandbox (TOW context); Ld 7 / 8; the army-list base first, then the world steps |
+| `test/cases/l3-racial-deltas.test.ts` | L3 (a), (b) and stored deltas; (c), (d) to do (wait for the Orcs & Goblins pages) |
+| `test/cases/army-round-trip.test.ts` | Round trip with army lists and rosters, both stores |
+| `test/unit/army-import.test.ts` | Cells and expressions; CSV, workbook and YAML give the same content; the read-back; fit on import |
+| `test/unit/army-text.test.ts` | A roster as text; an army package as CSV and YAML, re-imported unchanged |
+| `test/private/empire.test.ts` | The whole TOW Empire from the private data repo (skipped where it isn't checked out) |
 | `test/unit/tidy-up.test.ts` | The owner's container model (core, groups, category order from context / sandbox / built-in, local packages, warnings) and the import fixes |
 | `test/unit/import.test.ts` | Package and sandbox files, drafts, keys written back, problems per line, references by label |
 | `test/unit/export-text.test.ts` | Every item, package and sandbox re-imports unchanged and rebuilds the same content; read-backs |

@@ -47,14 +47,16 @@ These are expensive to retrofit (design: `design/infra.md`).
 - `src/world/` — things, dated links, and `reaches` / `in force`.
 - `src/overlay/` — rules (scope + trigger), the fold, and the derivation.
 - `src/import/` — the text format (YAML) into a draft, then deploy.
+- `src/army/` — army lists, races and rosters: the owner's sheets (CSV, workbook, YAML, JSON) into a draft; cards worked out; rosters costed and checked.
 - `src/ui/` — screens.
-- `test/cases/` — the acceptance cases.
+- `test/cases/` — the acceptance cases. `test/private/` runs against the private book data (`../worldbuilder-data`) where it's checked out.
 - `design/` — copied design docs (read-only here).
 - `build/` — slice briefs, the build log and the structure guide.
 - `schema/` — the emitted JSON Schema.
 
-## Fixture armies (owner, 12 Nov 2026)
-WFB 6th edition **Empire** by default. A second player in the same manifest: WFB 6th **Orcs & Goblins**. A case written for another game (Mordheim's I1) uses that game.
+## Fixture armies (owner, 12 Nov 2026; changed 15 Nov)
+**Warhammer: the Old World Empire** (Forces of Fantasy) by default; WFB 6th becomes a second test case later. A second player: TOW **Orcs & Goblins** when its pages come. A case written for another game (Mordheim's I1) uses that game.
+**Book data is private** (`grogvgremlin/worldbuilder-data`): only a handful of fixture units go in this repo.
 
 ## Out of scope until a brief says otherwise
 Sync, the server, real encryption, maps, rule and world editors, decks and dice. Their shapes exist in the schema; their behaviour does not. (Multiple logins and submissions come in with slice 1.)
