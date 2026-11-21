@@ -14,7 +14,7 @@ import { nameKey, readStat, slug } from "./cells";
 import { resolveCard, STATS, type Line } from "./card";
 import { describeFit, fitLine } from "./fit";
 import { buildArmyLibrary, raceCells } from "./library";
-import type { Sheet, SheetRow } from "./sheets";
+import { parseCsv, sheetFromTable, SHEET_COLUMNS, writeCsv, type Sheet, type SheetRow } from "./sheets";
 
 export interface SheetsOptions {
   manifest: string; // the game it's for ("tow")
@@ -30,7 +30,6 @@ interface Built {
 // already deployed). Order within and across files doesn't matter.
 export function buildSheetsDraft(
   sheets: Sheet[],
-  files: { name: string; text: string }[],
   label: string,
   options: SheetsOptions,
   existing: Existing,
@@ -69,13 +68,28 @@ export function buildSheetsDraft(
     target: { kind: "library" },
     label,
     createdTime: deps.now(),
-    sourceText: files.map((f) => "— " + f.name + " —").join("\n"),
-    rewrittenText: files.map((f) => "— " + f.name + " —").join("\n"),
-    files,
+    sourceText: sheets.map((sh) => "— " + sh.file + " —").join("\n"),
+    rewrittenText: sheets.map((sh) => "— " + sh.file + " —").join("\n"),
+    files: sheets.filter((sh) => sh.kind).map(sheetAsCsv),
+    sheets: { manifest: options.manifest, defaultPackage: options.defaultPackage },
     content: built.items.map(({ line, item }) => ({ line, item, status: statusOf(item, before.get(item.class + ":" + item.key)) })),
     logItems: [],
     problems: built.problems.sort((a, b) => (a.line ?? 0) - (b.line ?? 0)),
   };
+}
+
+// A sheet kept as CSV (a workbook's sheets too), so the draft can be rebuilt later.
+function sheetAsCsv(sheet: Sheet): { name: string; text: string } {
+  const columns = SHEET_COLUMNS[sheet.kind!].filter((c) => sheet.rows.some((r) => (r.cells[c] ?? "") !== ""));
+  return { name: sheet.file, text: writeCsv([columns, ...sheet.rows.map((r) => columns.map((c) => r.cells[c] ?? ""))]) };
+}
+
+// Rebuilds a sheets draft against what's deployed now (src/import/draft.ts refreshDraft).
+export function refreshSheetsDraft(draft: DraftBatch, existing: Existing): DraftBatch {
+  const sheets = (draft.files ?? []).map((f) => sheetFromTable(f.name, parseCsv(f.text)));
+  const options = draft.sheets ?? { manifest: "", defaultPackage: draft.label };
+  const fresh = buildSheetsDraft(sheets, draft.label, options, existing, { newId: () => draft.id, now: () => draft.createdTime });
+  return { ...fresh, label: draft.label };
 }
 
 function statusOf(item: ContentItem, before: ContentItem | undefined): "new" | "edit" | "unchanged" {

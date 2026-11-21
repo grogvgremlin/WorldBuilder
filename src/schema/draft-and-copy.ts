@@ -47,6 +47,7 @@ export const DraftBatch = z.object({
   // Sheets (CSV, a workbook, or their YAML / JSON form) are read as a set of files; kept so
   // the draft can be rebuilt against what's deployed now. Absent for a text import.
   files: z.array(z.object({ name: z.string(), text: z.string() })).optional(),
+  sheets: z.object({ manifest: z.string(), defaultPackage: z.string() }).optional(), // a sheets import's game and package
   rewrittenText: z.string(), // the text with keys written back
   content: z.array(DraftContentItem),
   logItems: z.array(DraftLogItem),

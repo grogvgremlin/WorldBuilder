@@ -67,6 +67,22 @@
         "additionalProperties": false
       }
     },
+    "sheets": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "string"
+        },
+        "defaultPackage": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "manifest",
+        "defaultPackage"
+      ],
+      "additionalProperties": false
+    },
     "rewrittenText": {
       "type": "string"
     },

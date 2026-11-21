@@ -42,8 +42,8 @@ describe.skipIf(!present)("the whole TOW Empire (private data)", () => {
       [GAME, ["races.csv", "core-common-links.csv", "equipment-core.csv"], "TOW rulebook"],
       [ARMY, ["army-entry.csv", "equipment.csv", "rules.csv"], "The Empire of Man"],
     ] as const) {
-      const { sheets, files } = await read(dir, [...names]);
-      const draft = buildSheetsDraft(sheets, files, pkg, { manifest: "tow", defaultPackage: pkg }, { content: await store.listContent(), loggedEventKeys: {} }, deps);
+      const { sheets } = await read(dir, [...names]);
+      const draft = buildSheetsDraft(sheets, pkg, { manifest: "tow", defaultPackage: pkg }, { content: await store.listContent(), loggedEventKeys: {} }, deps);
       expect(draft.problems.filter((p) => p.severity === "error")).toEqual([]);
       await saveDraft(store, draft);
       await deployDraft(store, deps, draft);

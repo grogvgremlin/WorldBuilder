@@ -105,8 +105,8 @@ export async function readSheets(dir: string, names: string[]): Promise<{ sheets
 
 // Imports army sheets through a draft and deploys it, like the Import screen does.
 export async function loadSheets(store: Store, deps: LogDeps, dir: string, names: string[], options: SheetsOptions): Promise<DraftBatch> {
-  const { sheets, files } = await readSheets(dir, names);
-  const draft = buildSheetsDraft(sheets, files, options.defaultPackage, options, { content: await store.listContent(), loggedEventKeys: {} }, deps);
+  const { sheets } = await readSheets(dir, names);
+  const draft = buildSheetsDraft(sheets, options.defaultPackage, options, { content: await store.listContent(), loggedEventKeys: {} }, deps);
   await saveDraft(store, draft);
   await deployDraft(store, deps, draft);
   return draft;

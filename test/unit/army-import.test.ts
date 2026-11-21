@@ -13,6 +13,7 @@ import { buildArmyLibrary } from "../../src/army/library";
 import { resolveCard } from "../../src/army/card";
 import { cardPlainText, cardText } from "../../src/army/read-back";
 import { fitLine } from "../../src/army/fit";
+import { refreshDraft } from "../../src/import/draft";
 import { EMPIRE_SHEETS, loadTowEmpire, readSheets, testDeps } from "../helpers";
 
 describe("cells", () => {
@@ -118,9 +119,20 @@ describe("importing the fixture Empire", () => {
     const xlsx = await readSheets("tow", ["empire.xlsx"]);
     const opts = { manifest: "tow", defaultPackage: "The Empire of Man" };
     const deps = { newId: () => "d", now: () => "t" };
-    const a = buildSheetsDraft(csv.sheets, csv.files, "x", opts, { content: [], loggedEventKeys: {} }, deps);
-    const b = buildSheetsDraft(xlsx.sheets, xlsx.files, "x", opts, { content: [], loggedEventKeys: {} }, deps);
+    const a = buildSheetsDraft(csv.sheets, "x", opts, { content: [], loggedEventKeys: {} }, deps);
+    const b = buildSheetsDraft(xlsx.sheets, "x", opts, { content: [], loggedEventKeys: {} }, deps);
     expect(b.content.map((c) => c.item)).toEqual(a.content.map((c) => c.item));
+  });
+
+  it("keeps a workbook's sheets as CSV, so its draft rebuilds to the same content", async () => {
+    const xlsx = await readSheets("tow", ["empire.xlsx"]);
+    const opts = { manifest: "tow", defaultPackage: "The Empire of Man" };
+    const deps = { newId: () => "d", now: () => "t" };
+    const draft = buildSheetsDraft(xlsx.sheets, "x", opts, { content: [], loggedEventKeys: {} }, deps);
+    expect(draft.files?.map((f) => f.name)).toEqual(["empire.xlsx › Army Entry", "empire.xlsx › Equipment", "empire.xlsx › Rules"]);
+    const rebuilt = refreshDraft(draft, { content: [], loggedEventKeys: {} });
+    expect(rebuilt.content).toEqual(draft.content);
+    expect(rebuilt.problems).toEqual(draft.problems);
   });
 
   it("reads the YAML form (one block per card, rows nested) into the same content", async () => {
@@ -168,8 +180,8 @@ describe("the read-back for sign-off", () => {
       "• Upgrade one model to a standard bearer … +5 points per unit",
       "  • A standard bearer may take Magic Standard instead of Standard (up to 25 points in total)",
       "• Upgrade one model to a musician … +5 points per unit",
-      "• May have the Drilled special rule … +1 point per model",
-      "• Limit: rules options 0-1 per 1,000 points of the roster target",
+      "• 0-1 unit per 1,000 points may:",
+      "  • May have the Drilled special rule … +1 point per model",
       "• Limit: SB(Magic Standard) 0-1 per 1,000 points of the roster target",
     ]);
     expect(text.derivation).toEqual([
