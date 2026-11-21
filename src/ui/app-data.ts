@@ -19,6 +19,12 @@ import type { RuleCheck } from "../overlay/derivation";
 import { buildWorld } from "../world/world";
 import { thingTree, type ThingTree } from "../world/tree";
 import { hookStates, type HookState } from "../overlay/hooks";
+import { buildSheetsDraft, type SheetsOptions } from "../army/import-sheets";
+import { readInputFile, type InputFile, type Sheet } from "../army/sheets";
+import { registerRoster, savePracticeRoster, type UnitRegistration } from "../army/register";
+import { viewRoster, type RosterView } from "../army/roster";
+import { readRosterText, writeRosterText } from "../army/roster-text";
+import type { Problem, Roster } from "../schema";
 
 // Everything a screen shows, read in one go.
 export interface Snapshot {
@@ -104,6 +110,22 @@ export class AppData {
 
   async importText(text: string, fileLabel: string): Promise<DraftBatch> {
     const draft = buildDraft(text, fileLabel, await this.existing(null), this.deps);
+    await saveDraft(this.store, draft);
+    return draft;
+  }
+
+  // Army sheets (CSV, a workbook, YAML or JSON): read every file, then one draft for them all.
+  // Returns the draft, or the files it couldn't read.
+  async importSheets(files: InputFile[], options: SheetsOptions): Promise<DraftBatch | { errors: string[] }> {
+    const sheets: Sheet[] = [];
+    const errors: string[] = [];
+    for (const file of files) {
+      const read = await readInputFile(file);
+      if ("error" in read) errors.push(read.error);
+      else sheets.push(...read);
+    }
+    if (errors.length > 0) return { errors };
+    const draft = buildSheetsDraft(sheets, options.defaultPackage, options, await this.existing(null), this.deps);
     await saveDraft(this.store, draft);
     return draft;
   }
@@ -213,6 +235,35 @@ export class AppData {
     const world = buildWorld(content, entries);
     const unit = world.units.get(unitKey);
     return unit ? readContext(world, contextFor(world, unit.context)) : null;
+  }
+
+  // --- Rosters -------------------------------------------------------------------------------------
+
+  // A roster worked out against everything in reach (army content is in the library).
+  async rosterView(roster: Roster): Promise<RosterView> {
+    return viewRoster(roster, await this.store.listContent());
+  }
+
+  // Saves a practice roster (outside every sandbox), or a registered one in its sandbox.
+  async saveRoster(roster: Roster): Promise<void> {
+    if (roster.registration) await this.store.putContent([roster]);
+    else await savePracticeRoster(this.store, roster);
+  }
+
+  async registerRoster(roster: Roster, sandbox: string, context: string, units: UnitRegistration[]): Promise<void> {
+    await registerRoster(this.store, roster, sandbox, context, units);
+    await this.openSandbox(sandbox);
+  }
+
+  rosterText(roster: Roster, all: ContentItem[]): string {
+    return writeRosterText(roster, all);
+  }
+
+  // A roster from text: saved straight away (it holds choices only), or its problems.
+  async importRosterText(text: string): Promise<{ roster: Roster | null; problems: Problem[] }> {
+    const read = readRosterText(text, await this.store.listContent());
+    if (read.roster && !read.problems.some((p) => p.severity === "error")) await this.saveRoster(read.roster);
+    return read;
   }
 
   // --- Whole copy -------------------------------------------------------------------------------

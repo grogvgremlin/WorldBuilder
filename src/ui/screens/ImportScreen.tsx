@@ -1,11 +1,15 @@
 // Paste or open a YAML file, or load a test world -> review the draft -> deploy or discard.
-// Design: design/text-format-and-csv.md §1, §3, §8 (import review); build/slice-0-brief.md §3.
+// Army sheets (CSV, a workbook, YAML or JSON) -> a draft whose every card is read back like the
+// book, to sign off -> deploy.
+// Design: design/text-format-and-csv.md §1, §3, §7, §8 (import review); build/slice-0-brief.md §3;
+// build-log Part B owner decisions 5–7 (the owner's sheets; the read-back to sign off).
 
 import { useEffect, useState } from "react";
 import type { DraftBatch, EventRecord } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
 import { WritingHelp } from "../components/WritingHelp";
-import { FIXTURE_SETS } from "../fixtures";
+import { ARMY_FIXTURES, FIXTURE_SETS } from "../fixtures";
+import { ArmySheetsImport, SheetsReview } from "./ArmySheets";
 
 interface Props {
   data: AppData;
@@ -48,6 +52,17 @@ export function ImportScreen({ data, snapshot, start, onChanged, onDeployed }: P
     setFileLabel(file.name);
   };
 
+  if (draft && draft.sheets) {
+    return (
+      <SheetsReview
+        draft={draft}
+        snapshot={snapshot}
+        onDeploy={async () => { await data.deploy(draft); setOpenDraftId(null); await onChanged(); }}
+        onDiscard={async () => { await data.discard(draft.id); setOpenDraftId(null); await onChanged(); }}
+        onBack={() => setOpenDraftId(null)}
+      />
+    );
+  }
   if (draft) {
     return (
       <DraftReview
@@ -73,6 +88,8 @@ export function ImportScreen({ data, snapshot, start, onChanged, onDeployed }: P
       </div>
 
       {notice && <p className="problem-warning">{notice}</p>}
+
+      <ArmySheetsImport data={data} snapshot={snapshot} fixtures={ARMY_FIXTURES} onDraft={async (id) => { await onChanged(); setOpenDraftId(id); }} />
 
       <h2>Your own text</h2>
       {start && <p className="muted">Editing {start.label}: change the text, then import it into a draft. Keys stay the same, so it edits the item.</p>}
@@ -119,6 +136,7 @@ export function ImportScreen({ data, snapshot, start, onChanged, onDeployed }: P
 // What a draft holds, in words: a manifest, a library package, a sandbox's world, or a package local to a sandbox.
 function draftKind(d: DraftBatch): string {
   const first = d.content[0]?.item;
+  if (d.sheets) return "army sheets";
   if (first?.class === "manifest") return "manifest (a game)";
   if (d.target.kind === "library") return "library package";
   return first?.class === "package" ? "package local to sandbox " + d.target.sandbox : "sandbox " + d.target.sandbox;
