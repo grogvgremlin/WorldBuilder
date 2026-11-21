@@ -6,13 +6,111 @@ Running record of the build: technical choices (with one line of why), the text 
 
 ## Slice 1 status (14 Nov 2026)
 
-Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up, hook objects (15 Nov) and the readability work (15 Nov) after the owner's checks; the build stopped there.** Part B needs the WFB 6th Empire numbers (`build/army-data-request.md`).
+Built in parts, in the brief's order (§0). **Part A is done, with a tidy-up, hook objects (15 Nov) and the readability work (15 Nov) after the owner's checks.** Part B: army data and input format settled with the owner 15–21 Nov (section below); building from 21 Nov.
 
 | Part | State |
 |---|---|
 | **A** Containers; GM fixes; display feedback | ✓ E1, E2, E4 pass with fixtures split by container (manifest, core, rules, world, log). **C1** ✓ (`test/cases/c1-package-switch.test.ts`), **C2** ✓ (`test/cases/c2-category-order.test.ts`). Round trip ✓ with sandboxes, contexts and GM fixes. |
-| **B** Army list and roster builder | Waiting on army data. Also in Part B: FAQs tied to what they correct (owner decision 5 above). **Owner decision (13 Nov): a CSV uploader is added to Part B** (`text-format-and-csv.md` §7: one CSV per class, columns "a starting shape, to iterate"). The owner writes an army list in the layout they find easiest, with notes; the reader follows that layout, and the form is settled by iterating. No format is fixed in advance; `army-data-request.md` §2–3 are suggestions only. |
+| **B** Army list and roster builder | **Started 21 Nov.** Army data: TOW Empire (owner decisions 15–21 Nov, below). The input format is the owner's spreadsheet (CSV / `.xlsx` / YAML / JSON). Also in Part B: FAQs tied to what they correct (owner decision 5 of 14 Nov). |
 | **C–E** Logins, submissions, battle | Not started; design docs for them not yet copied (brief §8) |
+
+### Slice 1, Part B: owner decisions and the army-list input format (15–21 Nov 2026)
+
+Worked out with the owner before building, from photos of *Warhammer: the Old World — Forces of Fantasy*. **The book data is private**: the transcription, the full Empire sheet, and the working notes behind everything below are in the private repo `grogvgremlin/worldbuilder-data` (branch `claude/tow-empire-transcription`), under `transcribed/tow/` and `working/tow/`. This repo holds only the few fixture units (owner, 15 Nov: a handful of units is fine to publish). **To carry back to the design project.**
+
+#### Owner decisions
+1. **The fixture army is TOW Empire**, not WFB 6th (the books to hand). WFB 6th becomes a second test case later; when is open. Orcs & Goblins (TOW *Ravening Hordes*) waits for its pages, and **L3(c) waits with it**.
+2. **Races belong to the game**, not to an army list ("a human is a human whether Empire or elsewhere"). The Empire is just where the human numbers come from for now.
+3. **Races, trees and ranks are common themes across profiles**, not the book's champion rows. A race's grid is **Tree × Rank** (e.g. Human · Professional · Veteran), each cell a full line, or a delta to another cell. Blank Tree reads Core; blank Rank reads Base. (The design's dependent-axis grid, `races-and-units.md` §2.)
+4. **A command slot may set a rank, a career (tree), or both, different from its unit's.** A career different from the unit's **warns, never blocks**.
+5. **The import format is the owner's spreadsheet** (`Input_Eg.xlsx`): sheets Army Entry, Equipment, Core Common Links, Races, plus a Rules sheet; Schemae and Glossary describe it. It supersedes `army-data-request.md` §2–3 and the YAML army-list sketches. Several input forms for the same data are accepted on purpose.
+6. **Import forms:**
+   - **bulk:** a set of CSVs, an `.xlsx` workbook (Google Sheets exported to `.xlsx` or CSV; a direct Google link is later), or the same content as **YAML or JSON**, with the same fields as the CSV columns;
+   - **single unit, or a correction:** a YAML or CSV window. A unit card form for simple changes is **later** (the brief has no editors in slice 1).
+7. **Review and sign-off:** the import turns each entry into a plain-text read-back that reads like the book entry (stats table including the champion and mount rows, troop type, base, size, equipment, options in the book's words, special rules). Then a separate **derivation** section (race cell, deltas, equipment effects, what each name matched). Then **warnings**. The uploader signs it off.
+8. **Unmatched names become stubs, flagged incomplete** (AGREED, tentative), so a later army book naming an unentered rule still imports. A written **key** that matches nothing is a warning and makes nothing (`text-format-and-csv.md` §3). **Keys are never typed in an upload**: names are matched within the kind the column expects; keys appear in exports.
+9. **Plural auto-alias:** a name with a trailing "s" matches the name without it (Halberds → Halberd). Only a plain "s". Other names: the item's **Alias** column (Hand Weapon ← Sword, Axe) and **Match Key** ("counts as": Iron Shod Hooves → Hand Weapon).
+10. **Fit on import** stays in Part B: when race, tree or rank is left blank, suggest the best-fitting cell and the delta it would store. Re-checking units after a race's grid changes, and suggesting new cells from recurring deltas, are a **later slice**.
+11. **"-" means "no such stat"**, not 0. **Delta or full line** may be entered; the resolved line is checked against the page in the review. Numbers accept the book's forms (10+, 0-1, 2-12) and relational ones (>, >=, <, <=).
+12. **Unit is the card** (the book entry / army entry; what other rows point at). **Name is a row within it** (the printed statline line: Empire Knight, Preceptor, Barded Warhorse). Links are written `X~Unit`. One card per army entry: State Troops and Veteran State Troops are two cards.
+13. **Inheritance (Link Key):** a card linked to another inherits it. An option written **with `+`** adds to the inherited ones; **the same name without `+`** replaces the inherited one; **`None`** removes all; **`-X`** removes one.
+14. **The options cell stays a one-cell expression** (`[A(add;+1~pi) OR B(add;+1~pi) OR C(replace~Shield;0~pi);Mandatory]`), read back in plain text for sign-off.
+15. **Limits:** a header (`rules options`) limits the set as a whole within the entry; a sub-item (`Drilled`) limits that one; `,` joins limits into one shared allowance, `;` makes separate allowances. **Cross-entry limits are army-level composition rows** ("0-1 General or Grand Master per 1,000"); unique ones may sit on the unit. **Where an army rule and a unit's own clash, the army rule wins.** "per 1,000" is per 1,000 of the **roster target**. State Missile Troops' "0-1 unit per 1,000 points may: Drilled; a magic standard" is read as **two** allowances (the page is ambiguous: a candidate to test an FAQ patch).
+16. **Crew and steeds via Slots:** `Crew(3;crew;0)` (existing slot syntax: count; type; cost); the crew row is one crewman (e.g. Human · Core · Base). The rulebook's crew and war machine rules adjust the card (TOW prints the gun crew as one line, W 3 A 3). Without those rules the card shows the line with a count of 3. The War Altar's horses: `Steed(2;steed;0)`.
+17. **Barding is equipment on the horse** (M −1, Save +1, Only(Mount)): one horse race, not two horse profiles. **The mount rules pass a mount's save to its rider**, not the barding item.
+18. **Mounts don't carry cavalry traits.** Horses have no Counter Charge, First Charge, Swiftstride or Fast Cavalry, and aren't heavy or light cavalry: those belong to the mounted unit, and a character's mount option grants them (`Barded Warhorse~Mount(add;+16)[Troop Type(Heavy Cavalry);Counter Charge;First Charge;Swiftstride]`). **A cavalry troop type requires being mounted.** A monster's own rules (Fly, Fear, Terror, Large Target, Stomp Attacks) **stay on the monster**.
+19. **The Battle Standard Bearer** is fine as a slot via Core Common Links (`BSB`); a "Role" line type would be the same information.
+20. **A magic standard sits on the standard bearer**, replacing the plain standard (`+Magic Standard (replace~Standard;0-50;0-1)`).
+
+#### The cases as built (brief §3.3, reworded for TOW)
+- **L1:** a practice roster from the TOW Empire fixture list: **Handgunners ×10 (State Missile Troops with handguns) with a Sergeant and a musician**, plus other units. Points per unit and per category against the list's costs; one limit broken shows as an issue; Ld reads **7**; nothing written to any log. (The brief's "Marksman" is the Empire Archers' champion in this book; the handgun unit's champion is a Sergeant, BS +1.)
+- **L2:** the same units registered in E1's sandbox, in a **TOW context** with **TOW copies of E1's campaign rules bound to the same world hooks** (rules belong to a game; owner, 14 Nov). Ld at 2525 = 7 with wages withheld, 8 paid; the derivation shows the army-list base first, then the world steps.
+- **L3:** (a) Handgunners read Human · Core · Base, no delta, Ld 7. (b) The Sergeant reads the unit line + the slot's delta (BS +1). (c) waits for the Orcs & Goblins pages. (d) as written.
+
+#### The text shape: army lists (proposal; the owner's format)
+Worked example: the whole Empire, in the private repo (`working/tow/input/` and `working/tow/forces-of-fantasy/the-empire/input/`), with its edge cases (`edge-cases.md`) and an import check. Sheets:
+
+| Sheet | One row per | Key columns |
+|---|---|---|
+| **Army Entry** | a card, or a row within a card (`Type`: Unit, Slots-Upgrade, Mount, Crew, Steed, Composition) | Package, SubPackage, Rule Type, Unit, Type, Link Key, Name, Tier (the army category), M…Ld, Cost, Equipment, Min/Max, Troop Type, Base Size, Slots, Equipment Options, Reference (book;page), Unit Limit, Rules, Rules Options, Status, Race, Rank, Tree, Save |
+| **Equipment** | an item (mundane, book, magic) | Equipment, Match Key, M…Ld, Save, Rules, Alias, Rules 2 (text), Type, R, AP, Cost, Reference |
+| **Core Common Links** | a shared slot kind | Link Key (C, SB, M, BSB, Crew, Steed), Name, Equipment it carries, Alias |
+| **Races** | a Race · Tree · Rank cell | Race, Tree, Rank, M…Ld, Rules, Reference |
+| **Rules** | a special rule printed in a book | Rule, Rules (programmatic), Rules 2 (text), Reference |
+
+An Empire Knights card, as CSV rows (empty columns left out):
+
+| Unit | Type | Link Key | Name | Stats | Cost | Other |
+|---|---|---|---|---|---|---|
+| Empire Knights | Unit | | Empire Knight | – 4 3 3 3 1 3 1 8 | 21~pi | Tier Core; Equipment `Hand Weapon;Heavy Armour;Shield;Barded Warhorse(Ridden)~Mount`; Min/Max `4-`; Troop Type Heavy Cavalry; Slots `C(slots);SB(slots);M(0-1;upgrade;+6)`; Equipment Options `[Great Weapons(add;+1~pi) OR Lances(add;+1~pi) OR Great Weapons(replace~Shield;0~pi);Mandatory]`; Unit Limit `rules options~0-1~1000 roster target`; Rules Options `Drilled(1~pi);Stubborn(2~pi)`; Race Human, Tree Professional, Rank Veteran; Reference `Forces of Fantasy;64` |
+| Empire Knights | Slots-Upgrade | C | Preceptor | A +1 | +6 | Min/Max `0-1`; Equipment Options `+Magic Items(;0-25 total)` |
+| Empire Knights | Slots-Upgrade | SB | Standard Bearer | | +6 | Equipment Options `+Magic Standard (replace~Standard;0-25 total;0-1)` |
+
+**The same card in YAML** (and JSON: the same structure): one block per card, the rows within it as a list, field names as the CSV columns, cell values written exactly as in the CSV:
+
+```yaml
+- unit: Empire Knights
+  type: Unit
+  name: Empire Knight
+  tier: Core
+  stats: {M: '-', WS: 4, BS: 3, S: 3, T: 3, W: 1, I: 3, A: 1, Ld: 8}
+  cost: 21~pi
+  equipment: Hand Weapon;Heavy Armour;Shield;Barded Warhorse(Ridden)~Mount
+  min/max: 4-
+  troop type: Heavy Cavalry
+  slots: C(slots);SB(slots);M(0-1;upgrade;+6)
+  equipment options: '[Great Weapons(add;+1~pi) OR Lances(add;+1~pi) OR Great Weapons(replace~Shield;0~pi);Mandatory]'
+  unit limit: rules options~0-1~1000 roster target
+  rules: Close Order;Counter Charge;First Charge;Swiftstride
+  rules options: Drilled(1~pi);Stubborn(2~pi)
+  race: Human
+  tree: Professional
+  rank: Veteran
+  reference: Forces of Fantasy;64
+  rows:
+    - {type: Slots-Upgrade, link key: C, name: Preceptor, stats: {A: +1}, cost: +6, min/max: 0-1, equipment options: '+Magic Items(;0-25 total)'}
+    - {type: Slots-Upgrade, link key: SB, name: Standard Bearer, cost: +6, min/max: 0-1, equipment options: '+Magic Standard (replace~Standard;0-25 total;0-1)'}
+```
+
+#### Questions for design (Part B)
+Built the way described; each is beyond the design docs as they stand.
+17. **The options cell** is a small expression language inside one cell (`[ … OR … ;Mandatory]`, `add` / `replace~X`, `~pi`, budgets `0-25 total`, `[ ]` linked rules after an option). The design has option groups and cards as structured fields (`options-items-and-rules.md` §1). Read as a notation for the same thing; problems are reported down to the option within the cell.
+18. **Inheritance through Link Key** with `+`, same-name replace, `None`, `-X`. The design's `extends` stores differences on keyed lists; this is the same idea with the owner's override words.
+19. **The race grid** (Tree × Rank cells) instead of independent axes with per-node deltas from the parent. Both are in `races-and-units.md` §2 (independent and dependent axes); the owner's form is the grid.
+20. **Statuses** (Ridden, Mounted; `MayBe(…)`, `Only(…)`) as conditions and grants. Closest design shapes: system tags, selectors on link type / profile, battlefield conditions.
+21. **A mount's bonuses to its rider** (Pegasus W +1; Griffon T +1, W +3; a mount's save) pass through the mount rules. The design has "a profile can apply modifiers to a sibling" (`races-and-units.md` §5).
+22. **Crew rules** turn a crew of 3 into the printed card line (W 3, A 3). The design has crew as profiles with a count; the pooling rule is new.
+23. **Role vs slot** for the Battle Standard Bearer (the design: the BSB is a role, `races-and-units.md` §6); built as a slot via Core Common Links, as the owner prefers.
+24. **Book group names** ("Commanders of the Empire only" on the Dragon Bow) need a way to name a group of entries. Not built yet.
+
+#### For the design project's registers
+- **Techniques used:**
+  - label matching like headers, scoped to the kind a column expects, with a trailing-"s" plural alias;
+  - nearest-label "did you mean" suggestions (edit distance), suggestion only;
+  - factoring profiles into a base plus shared steps by recurring differences (fit on import);
+  - read everything, resolve across the whole upload, then report.
+- **Techniques rejected:** averaging profiles to find a race base (leaves a delta on everything); parsing the book's sentences directly (the user types the shape).
+- **Links:** none new.
 
 ### Queued for the next build (owner, 15 Nov)
 
