@@ -63,6 +63,14 @@ After the first deploy (owner, 21 Nov, from the phone):
     - each unit's cost folds out, one line per part;
     - the size box can be cleared while typing.
 28. **"Show options for"** defaults to the roster's points. At 500 points, an entry or option allowed "0-1 per 1,000 points" isn't offered. It can be widened (up to N points, or everything), even though the wider choices then cause issues. **It only hides choices: issues are worked out the same.** An option already picked stays shown so it can be undone.
+29. **A pick-up game has three homes** (owner, 21 Nov), plus the registered roster, which is a world's own army and not a pick-up game:
+    1. **A blank sandbox:** choose a game (its core always on), then your books, FAQs and house rules, then build the list. It is a game context with no world. Today's practice roster reads only the army list and what that needs; this replaces that.
+    2. **A "what if" army in a world that's already running:**
+       - it reads that world's context and the world rules that reach a chosen place at a chosen date, as if the units were raised there;
+       - it writes nothing to the world or its logs (derived on read; the roster keeps its sandbox, context, place and date);
+       - a neutral or made-up place means no world rules, only the context's packages;
+       - per-unit places waits for campaign mechanics.
+    3. **Borrowed units:** units already registered in a world, as they stand at a date, taken into a one-off game that isn't part of the story. Nothing from the game is logged back.
 
 #### The cases as built (brief §3.3, reworded for TOW)
 - **L1:** a practice roster from the TOW Empire fixture list: **Handgunners ×10 (State Missile Troops with handguns) with a Sergeant and a musician**, plus other units. Points per unit and per category against the list's costs; one limit broken shows as an issue; Ld reads **7**; nothing written to any log. (The brief's "Marksman" is the Empire Archers' champion in this book; the handgun unit's champion is a Sergeant, BS +1.)
@@ -154,15 +162,6 @@ Built the way described; each is beyond the design docs as they stand.
   - the importer's own tests;
   - the whole private Empire imports with no errors and no warnings beyond the rulebook stubs (`test/private/`, run only where the data repo is checked out).
 - **Not built (brief §3.2, unchanged):** magic item allowances (shown, not picked), mounts' bonuses to riders as numbers, the crew rule's pooling (the crew shows as one crewman ×3), draws, inventory, locks, fixes, the card edit form (later, owner 21 Nov).
-
-29. **A pick-up game has three homes** (owner, 21 Nov), plus the registered roster, which is a world's own army and not a pick-up game:
-    1. **A blank sandbox:** choose a game (its core always on), then your books, FAQs and house rules, then build the list. It is a game context with no world. Today's practice roster reads only the army list and what that needs; this replaces that.
-    2. **A "what if" army in a world that's already running:**
-       - it reads that world's context and the world rules that reach a chosen place at a chosen date, as if the units were raised there;
-       - it writes nothing to the world or its logs (derived on read; the roster keeps its sandbox, context, place and date);
-       - a neutral or made-up place means no world rules, only the context's packages;
-       - per-unit places waits for campaign mechanics.
-    3. **Borrowed units:** units already registered in a world, as they stand at a date, taken into a one-off game that isn't part of the story. Nothing from the game is logged back.
 
 #### Owner note, 21 Nov: loading and contexts, for later usability work
 - **The end state:** everything is *loaded* into the library first. Creating a context by choosing a game switches on its core package automatically, and shows the packages that can be switched on for that game. This is roughly how the app works now; what needs work is how it feels to use.
