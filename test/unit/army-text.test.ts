@@ -41,7 +41,8 @@ describe("an army package as text", () => {
       sheets.push(...got);
     }
     const draft = buildSheetsDraft(sheets, "x", { manifest: "tow", defaultPackage: "The Empire of Man" }, { content: [], loggedEventKeys: {} }, { newId: () => "d", now: () => "t" });
-    return draft.content.map((c) => c.item).filter((i) => i.class !== "package");
+    // Only the package itself: re-imported alone, the rules it names from the game come back as stubs.
+    return draft.content.map((c) => c.item).filter((i) => i.class !== "package" && i.package === "the_empire_of_man");
   }
 
   it("exports CSV that re-imports to the same content", async () => {

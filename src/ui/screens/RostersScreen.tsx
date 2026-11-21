@@ -11,7 +11,7 @@ import type { AppData, Snapshot } from "../app-data";
 import { optionId, type CardOption, type ResolvedCard } from "../../army/card";
 import { cardText } from "../../army/read-back";
 import { slug, nameKey } from "../../army/cells";
-import type { RosterUnitView, RosterView } from "../../army/roster";
+import { sectionsOf, type AddableCard, type Issue, type Offer, type RosterUnitView, type RosterView, type Section } from "../../army/roster";
 import type { OptionEntry } from "../../army/options";
 import { ArmyCardView } from "../components/ArmyCardView";
 
@@ -122,78 +122,108 @@ function RosterFromText({ data, onDone }: { data: AppData; onDone: () => Promise
 
 // --- One roster ---------------------------------------------------------------------------------
 
+// "Show options for": the roster's target by default; wider values offer more (and may cause issues).
+const SHOW_FOR = [500, 1000, 1500, 2000, 2500, 3000, 4000];
+
 function RosterDetail({ data, snapshot, roster, onBack, onChanged }: { data: AppData; snapshot: Snapshot; roster: Roster; onBack: () => void; onChanged: () => Promise<void> }) {
   const [view, setView] = useState<RosterView | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [showFor, setShowFor] = useState<"target" | "all" | number>("target");
   const [editing, setEditing] = useState<string | null>(null);
   const [showText, setShowText] = useState(false);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
+  const points = showFor === "target" ? roster.target : showFor === "all" ? null : showFor;
   useEffect(() => {
     void data.rosterView(roster).then(setView);
   }, [data, roster]);
+  useEffect(() => {
+    void data.rosterOffer(roster, points).then(setOffer);
+  }, [data, roster, points]);
 
+  // Every change is saved as it's made; the note says so, or why it wasn't.
   const save = async (next: Roster) => {
-    await data.saveRoster(next);
+    try {
+      await data.saveRoster(next);
+      setSaved({ ok: true, text: "Saved " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) });
+    } catch (e) {
+      setSaved({ ok: false, text: "Not saved: " + (e instanceof Error ? e.message : String(e)) });
+    }
     await onChanged();
   };
-  if (!view) return <p className="muted">Working it out…</p>;
+  if (!view || !offer) return <p className="muted">Working it out…</p>;
   const unitView = view.units.find((u) => u.unit.id === editing);
   if (unitView)
     return (
       <UnitEditor
         view={unitView}
+        issues={view.issues.filter((i) => i.affects.includes(unitView.unit.id))}
+        offer={offer}
+        saved={saved}
         onBack={() => setEditing(null)}
         onChange={(u) => save({ ...roster, units: roster.units.map((x) => (x.id === u.id ? u : x)) })}
         onRemove={async () => { setEditing(null); await save({ ...roster, units: roster.units.filter((x) => x.id !== unitView.unit.id) }); }}
       />
     );
 
-  const illegal = view.issues.filter((i) => i.severity === "illegal");
+  const categories = [...view.categories.map((c) => c.category), ...offer.cards.map((c) => c.category)];
+  const sections = sectionsOf(view, [...new Set(categories)]);
+  // Category totals already show red in the summary: their issues aren't listed twice.
+  const rosterIssues = view.issues.filter((i) => i.affects.length === 0 && !view.categories.some((c) => !c.ok && i.message.startsWith(c.category + ":")));
+  const unitIssues = view.issues.filter((i) => i.affects.length > 0);
+  const illegal = view.issues.filter((i) => i.severity === "illegal").length;
+  const over = view.total > roster.target;
+  const add = (unit: RosterUnit) => save({ ...roster, units: [...roster.units, unit] });
   return (
     <>
       <button className="link" onClick={onBack}>‹ Rosters</button>
       <h1>{roster.label}</h1>
       <p className="muted">
         {view.list?.label ?? roster.armyList} · {roster.registration ? "registered in " + roster.registration.sandbox : "practice: no world, nothing logged"}
-      </p>
-      <p>
-        <strong>{view.total}</strong> of{" "}
-        <input className="inline" type="number" inputMode="numeric" value={roster.target} aria-label="Points limit" onChange={(e) => save({ ...roster, target: Number(e.target.value) })} /> points
+        {saved && <span className={saved.ok ? "" : " problem-error"}> · {saved.text}</span>}
       </p>
 
-      <div className="card totals">
-        {view.categories.map((c) => (
-          <div key={c.category} className="totals-row">
-            <span>{c.category}</span>
-            <span className={c.ok ? "" : "bad"}>{c.points}</span>
-            <span className="muted">{c.limit}</span>
-          </div>
+      <div className="card">
+        <p className={over ? "over-limit" : "within-limit"}>
+          {view.total}/<NumberField value={roster.target} label="Points limit" className="points-input" onCommit={(target) => save({ ...roster, target })} /> points
+        </p>
+        {sections.filter((sec) => sec.total).map((sec) => (
+          <p key={sec.category} className={sec.total!.ok ? "within-limit" : "over-limit"}>
+            {sectionSummary(sec)}
+          </p>
         ))}
+        {rosterIssues.map((issue, i) => (
+          <p key={i} className={issue.severity === "illegal" ? "over-limit" : "problem-warning"}>
+            {issue.message}
+          </p>
+        ))}
+        {illegal > 0 && <p className="muted">{illegal === 1 ? "1 issue makes it illegal" : illegal + " issues make it illegal"}{unitIssues.length > 0 ? "; units with issues are marked below" : ""}.</p>}
       </div>
 
-      {view.issues.length > 0 && (
-        <div className="card gap-top">
-          {illegal.length > 0 && <p className="problem-error">{illegal.length === 1 ? "1 issue makes it illegal" : illegal.length + " issues make it illegal"}</p>}
-          {view.issues.map((issue, i) => (
-            <p key={i} className={issue.severity === "illegal" ? "problem-error" : "problem-warning"}>
-              {issue.message}
-            </p>
-          ))}
-        </div>
-      )}
+      <label htmlFor="show-for">Show options for</label>
+      <select id="show-for" value={String(showFor)} onChange={(e) => setShowFor(e.target.value === "target" || e.target.value === "all" ? e.target.value : Number(e.target.value))}>
+        <option value="target">this roster ({roster.target} points)</option>
+        {SHOW_FOR.filter((n) => n > roster.target).map((n) => (
+          <option key={n} value={n}>
+            up to {n} points (may cause issues)
+          </option>
+        ))}
+        <option value="all">everything (may cause issues)</option>
+      </select>
 
-      <h2>Units</h2>
-      {view.units.map((u) => (
-        <button key={u.unit.id} className="list-button card" onClick={() => setEditing(u.unit.id)}>
-          <span>
-            {u.card?.unit ?? u.unit.card} {u.unit.size > 1 ? "×" + u.unit.size : ""} {u.unit.general && <span className="tag good">General</span>}
-            <br />
-            <span className="muted">
-              {u.card?.category} · {[...u.unit.slots, ...u.unit.options].join(", ") || "no upgrades"}
-            </span>
-          </span>
-          <span>{u.points}</span>
-        </button>
+      {sections.map((sec) => (
+        <section key={sec.category}>
+          <h2 className={sec.total ? (sec.total.ok ? "within-limit" : "over-limit") : ""}>{sec.total ? sectionSummary(sec) : sec.category + " " + sec.units.reduce((n, u) => n + u.points, 0)}</h2>
+          {sec.units.map((u) => (
+            <UnitRow key={u.unit.id} view={u} issues={view.issues.filter((i) => i.affects.includes(u.unit.id))} onOpen={() => setEditing(u.unit.id)} />
+          ))}
+          <AddUnit roster={roster} cards={offer.cards.filter((c) => c.category === sec.category && c.offered)} onAdd={add} />
+          {offer.cards.some((c) => c.category === sec.category && !c.offered) && (
+            <p className="muted">
+              Not offered at {offer.points} points: {offer.cards.filter((c) => c.category === sec.category && !c.offered).map((c) => c.label).join(", ")}.
+            </p>
+          )}
+        </section>
       ))}
-      <AddUnit snapshot={snapshot} roster={roster} onAdd={(unit) => save({ ...roster, units: [...roster.units, unit] })} />
 
       <div className="row gap-top-lg">
         <button onClick={() => setShowText(!showText)}>{showText ? "Hide text" : "View text"}</button>
@@ -209,62 +239,118 @@ function RosterDetail({ data, snapshot, roster, onBack, onChanged }: { data: App
   );
 }
 
-function AddUnit({ snapshot, roster, onAdd }: { snapshot: Snapshot; roster: Roster; onAdd: (unit: RosterUnit) => void }) {
-  const list = snapshot.all.find((i) => i.class === "army_list" && i.key === roster.armyList);
-  const cards = snapshot.all.filter((i) => i.class === "army_card" && list && i.package === list.package && (i.rows[0]["Tier"] ?? "") !== "" && !/mount/i.test(i.rows[0]["Tier"] ?? ""));
-  const categories = [...new Set(cards.map((c) => (c.class === "army_card" ? c.rows[0]["Tier"] : "") ?? ""))];
-  const [pick, setPick] = useState("");
-  const add = () => {
-    const card = cards.find((c) => c.key === pick);
-    if (!card || card.class !== "army_card") return;
-    const min = Number(/^(\d+)/.exec(card.rows[0]["Min/Max"] ?? "1")?.[1] ?? 1) || 1;
+// "Characters 45/250 (up to 50%)" (owner, 21 Nov).
+function sectionSummary(sec: Section): string {
+  const t = sec.total!;
+  return sec.category + " " + t.points + "/" + t.bound + " (" + t.percent + ")";
+}
+
+// A unit in its section: tap to open; its cost folds out, a line per part; its issues under it.
+function UnitRow({ view, issues, onOpen }: { view: RosterUnitView; issues: Issue[]; onOpen: () => void }) {
+  const u = view.unit;
+  return (
+    <div className={"card unit-row" + (issues.some((i) => i.severity === "illegal") ? " has-issue" : "")}>
+      <button className="list-button bare" onClick={onOpen}>
+        <span>
+          {view.card?.unit ?? u.card} {u.size > 1 ? "×" + u.size : ""} {u.general && <span className="tag good">General</span>}
+          <br />
+          <span className="muted">{[...u.slots, ...u.options].join(", ") || "no upgrades"}</span>
+        </span>
+        <span aria-hidden>›</span>
+      </button>
+      <CostLines view={view} />
+      {issues.map((issue, i) => (
+        <p key={i} className={issue.severity === "illegal" ? "over-limit" : "problem-warning"}>
+          {issue.message}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function CostLines({ view }: { view: RosterUnitView }) {
+  return (
+    <details>
+      <summary>{view.points} points</summary>
+      <ul className="cost-lines">
+        {view.breakdown.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+// A number box that can be cleared while typing: the value is kept only when it's a whole number
+// of at least `min`; on leaving the box, a blank or bad entry goes back to the last good value.
+function NumberField({ value, min = 1, label, className, onCommit }: { value: number; min?: number; label: string; className?: string; onCommit: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const read = (t: string) => (/^\d+$/.test(t.trim()) && Number(t) >= min ? Number(t) : null);
+  return (
+    <input
+      className={className}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      aria-label={label}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = read(e.target.value);
+        if (n !== null && n !== value) onCommit(n);
+      }}
+      onBlur={() => setText(String(read(text) ?? value))}
+    />
+  );
+}
+
+function AddUnit({ roster, cards, onAdd }: { roster: Roster; cards: AddableCard[]; onAdd: (unit: RosterUnit) => void }) {
+  if (cards.length === 0) return null;
+  const add = (key: string) => {
+    if (!key) return;
     const n = roster.units.reduce((m, u) => Math.max(m, Number(u.id.replace(/\D/g, "")) || 0), 0) + 1;
-    onAdd({ id: "u" + n, card: card.key, size: min, options: [], slots: [], general: false });
-    setPick("");
+    const size = cards.find((c) => c.key === key)?.minSize ?? 1;
+    onAdd({ id: "u" + n, card: key, size, options: [], slots: [], general: false });
   };
   return (
-    <div className="row gap-top">
-      <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Unit to add" className="grow">
-        <option value="">Add a unit…</option>
-        {categories.map((cat) => (
-          <optgroup key={cat} label={cat}>
-            {cards
-              .filter((c) => c.class === "army_card" && c.rows[0]["Tier"] === cat)
-              .map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-          </optgroup>
-        ))}
-      </select>
-      <button className="primary" disabled={!pick} onClick={add}>
-        Add
-      </button>
-    </div>
+    <select value="" onChange={(e) => add(e.target.value)} aria-label={"Add to " + cards[0].category} className="gap-top">
+      <option value="">Add…</option>
+      {cards.map((c) => (
+        <option key={c.key} value={c.key}>
+          {c.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
 // --- One unit -------------------------------------------------------------------------------------
 
-function UnitEditor({ view, onBack, onChange, onRemove }: { view: RosterUnitView; onBack: () => void; onChange: (u: RosterUnit) => void; onRemove: () => void }) {
+function UnitEditor({ view, issues, offer, saved, onBack, onChange, onRemove }: { view: RosterUnitView; issues: Issue[]; offer: Offer; saved: { ok: boolean; text: string } | null; onBack: () => void; onChange: (u: RosterUnit) => void; onRemove: () => void }) {
   const unit = view.unit;
   const card = view.card;
   if (!card) return <><button className="link" onClick={onBack}>‹ Roster</button><p className="problem-error">No entry {unit.card} in the army list.</p></>;
   const set = (patch: Partial<RosterUnit>) => onChange({ ...unit, ...patch });
   const isCharacter = card.size !== null && card.size.max === 1;
   const slotsToPick = card.slots.filter((s) => s.type !== "crew" && s.type !== "steed");
+  // Options the points shown don't allow are hidden, unless already picked (so they can be undone).
+  const shown = (o: CardOption): CardOption => ({ ...o, group: { ...o.group, members: o.group.members.filter((m) => offer.optionOffered(card, o, m) || isPicked(unit.options, m)) } });
   return (
     <>
       <button className="link" onClick={onBack}>‹ Roster</button>
       <h1>{card.unit}</h1>
-      <p>
-        <strong>{view.points}</strong> points <span className="muted">({view.breakdown.join(" · ")})</span>
-      </p>
+      {saved && <p className={saved.ok ? "muted" : "problem-error"}>{saved.text}</p>}
+      {issues.map((issue, i) => (
+        <p key={i} className={issue.severity === "illegal" ? "over-limit" : "problem-warning"}>
+          {issue.message}
+        </p>
+      ))}
+      <CostLines view={view} />
       {!isCharacter && (
         <div className="stepper gap-top">
           <button onClick={() => set({ size: Math.max(1, unit.size - 1) })} aria-label="One fewer">−</button>
-          <input type="number" inputMode="numeric" value={unit.size} aria-label="Models" onChange={(e) => set({ size: Math.max(1, Number(e.target.value) || 1) })} />
+          <NumberField value={unit.size} label="Models" onCommit={(size) => set({ size })} />
           <button onClick={() => set({ size: unit.size + 1 })} aria-label="One more">+</button>
           <span className="muted">models{card.size ? " (" + (card.size.max === null ? card.size.min + "+" : card.size.min + "–" + card.size.max) + ")" : ""}</span>
         </div>
@@ -290,9 +376,12 @@ function UnitEditor({ view, onBack, onChange, onRemove }: { view: RosterUnitView
       <h2>Options</h2>
       {card.options
         .filter((o) => o.section !== "slot" || unit.slots.some((s) => nameKey(s) === nameKey(o.slot ?? "")))
+        .map(shown)
+        .filter((o) => o.group.members.length > 0)
         .map((o, i) => (
           <OptionGroupPicker key={i} option={o} picks={unit.options} onChange={(options) => set({ options })} />
         ))}
+      {offer.points !== null && <p className="muted">Showing options for {offer.points} points.</p>}
 
       <h2>Card</h2>
       <ArmyCardView text={cardText({ ...card, rows: view.lines } as ResolvedCard)} />

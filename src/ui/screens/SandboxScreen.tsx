@@ -101,7 +101,9 @@ function ContextCard({ data, sandbox, view, packages, content, onOpenItem, onCha
   const [adding, setAdding] = useState("");
   const ruleLabel = (key: string) => content.find((i) => i.class === "rule" && i.key === key)?.label ?? key;
   const pkg = (key: string) => findByKey(packages, key, sandbox) as Package | undefined;
-  const notListed = packages.filter((p) => !view.packages.some((s) => s.key === p.key));
+  // Only packages for this game (or for no game: a world's own) are offered: editions are
+  // exclusive (manifest §1; owner, 21 Nov: "why can I load 6th ed stuff into a TOW context").
+  const notListed = packages.filter((p) => !view.packages.some((s) => s.key === p.key) && (!p.edition || p.edition === context.manifest));
   const act = async (fn: () => Promise<void>) => {
     await fn();
     await onChanged();

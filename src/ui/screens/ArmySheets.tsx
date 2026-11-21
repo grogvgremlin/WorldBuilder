@@ -6,7 +6,8 @@
 import { useState } from "react";
 import type { DraftBatch } from "../../schema";
 import type { AppData, Snapshot } from "../app-data";
-import type { Fixture } from "../fixtures";
+import type { ArmyFixture } from "../fixtures";
+import { FIXTURE_SETS } from "../fixtures";
 import { buildArmyLibrary } from "../../army/library";
 import { resolveCard } from "../../army/card";
 import { cardText } from "../../army/read-back";
@@ -15,7 +16,7 @@ import { ArmyCardView } from "../components/ArmyCardView";
 interface ImportProps {
   data: AppData;
   snapshot: Snapshot;
-  fixtures: { name: string; manifest: string; defaultPackage: string; files: Fixture[] }[];
+  fixtures: ArmyFixture[];
   onDraft: (draftId: string) => Promise<void>;
 }
 
@@ -25,9 +26,20 @@ export function ArmySheetsImport({ data, snapshot, fixtures, onDraft }: ImportPr
   const [pkg, setPkg] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [loadedFirst, setLoadedFirst] = useState<string[]>([]);
 
   const run = async (inputs: { name: string; text?: string; bytes?: Uint8Array }[], defaultPackage: string, game: string) => {
     const result = await data.importSheets(inputs, { manifest: game, defaultPackage });
+    if ("errors" in result) setErrors(result.errors);
+    else {
+      setErrors([]);
+      await onDraft(result.id);
+    }
+  };
+  // A bundled fixture loads the pieces it needs first (the game, its races and rules), if missing.
+  const fromFixture = async (f: ArmyFixture) => {
+    const { result, loaded } = await data.importArmyFixture(f, fixtures, FIXTURE_SETS);
+    setLoadedFirst(loaded);
     if ("errors" in result) setErrors(result.errors);
     else {
       setErrors([]);
@@ -50,11 +62,12 @@ export function ArmySheetsImport({ data, snapshot, fixtures, onDraft }: ImportPr
       </p>
       <div className="row">
         {fixtures.map((f) => (
-          <button key={f.name} onClick={() => run(f.files, f.defaultPackage, f.manifest)}>
+          <button key={f.name} onClick={() => fromFixture(f)}>
             {f.name} <span className="muted">({f.files.length} files)</span>
           </button>
         ))}
       </div>
+      {loadedFirst.length > 0 && <p className="muted">Loaded first, as it needs them: {loadedFirst.join(", ")}.</p>}
       <label htmlFor="sheets">Files</label>
       <input id="sheets" type="file" multiple accept=".csv,.xlsx,.yaml,.yml,.json,text/csv" onChange={(e) => setFiles([...(e.target.files ?? [])])} />
       <label htmlFor="sheets-game">Game</label>
@@ -66,7 +79,7 @@ export function ArmySheetsImport({ data, snapshot, fixtures, onDraft }: ImportPr
         ))}
       </select>
       <label htmlFor="sheets-package">Package, for sheets with no Package column (races, equipment …)</label>
-      <input id="sheets-package" value={pkg} onChange={(e) => setPkg(e.target.value)} placeholder="TOW rulebook" />
+      <input id="sheets-package" value={pkg} onChange={(e) => setPkg(e.target.value)} placeholder="TOW rules" />
       <div className="row gap-top">
         <button className="primary" disabled={files.length === 0 || !manifest} onClick={fromFiles}>
           Read the sheets into a draft

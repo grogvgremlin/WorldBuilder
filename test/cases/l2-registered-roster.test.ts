@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MemoryStore } from "../../src/store/memory-store";
 import { withdraw } from "../../src/log/log";
 import { registerRoster } from "../../src/army/register";
-import { eventEntryId, l1Roster, loadSet, loadSheets, EMPIRE_SHEETS, resolveStored, testDeps, TOW_CORE_SHEETS } from "../helpers";
+import { eventEntryId, l1Roster, loadSet, loadSheets, EMPIRE_SHEETS, resolveStored, testDeps, loadTowSheets } from "../helpers";
 
 describe("L2 the same list, registered in E1's sandbox", () => {
   let store: MemoryStore;
@@ -18,7 +18,7 @@ describe("L2 the same list, registered in E1's sandbox", () => {
   beforeEach(async () => {
     store = new MemoryStore();
     await loadSet(store, deps, "L2");
-    await loadSheets(store, deps, "tow", TOW_CORE_SHEETS, { manifest: "tow", defaultPackage: "TOW rulebook" });
+    await loadTowSheets(store, deps);
     await loadSheets(store, deps, "tow", EMPIRE_SHEETS, { manifest: "tow", defaultPackage: "The Empire of Man" });
     const roster = { ...l1Roster(), key: "nuln_garrison", label: "Nuln garrison" };
     await registerRoster(store, roster, "e1", "tow", [

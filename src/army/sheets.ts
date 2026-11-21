@@ -17,12 +17,12 @@ export const SHEET_COLUMNS: Record<SheetKind, string[]> = {
   "army entry": [
     "Package", "SubPackage", "Rule Type", "Unit", "Key", "Type", "Link Key", "Name", "Tier",
     "M", "WS", "BS", "S", "T", "W", "I", "A", "Ld", "Cost", "Equipment", "Min/Max", "Troop Type", "Base Size",
-    "Slots", "Equipment Options", "Reference", "Unit Limit", "Rules", "Rules Options", "Status", "Race", "Rank", "Tree", "Save", "Notes",
+    "Slots", "Equipment Options", "Reference", "Unit Limit", "Rules", "Rules Options", "Status", "Race", "Rank", "Tree", "Save", "Requires", "Notes",
   ],
-  equipment: ["Equipment", "Match Key", "M", "WS", "BS", "S", "T", "W", "I", "A", "Ld", "Save", "Rules", "Alias", "Rules 2", "Type", "R", "AP", "Cost", "Reference", "Notes"],
-  "core common links": ["Link Key", "Name", "Equipment", "Alias", "Reference", "Notes"],
-  races: ["Race", "Tree", "Rank", "M", "WS", "BS", "S", "T", "W", "I", "A", "Ld", "Rules", "Reference", "Notes"],
-  rules: ["Rule", "Rules", "Rules 2", "Reference", "Notes"],
+  equipment: ["Equipment", "Match Key", "M", "WS", "BS", "S", "T", "W", "I", "A", "Ld", "Save", "Rules", "Alias", "Rules 2", "Type", "R", "AP", "Cost", "Reference", "Package", "Requires", "Notes"],
+  "core common links": ["Link Key", "Name", "Equipment", "Alias", "Reference", "Package", "Requires", "Notes"],
+  races: ["Race", "Tree", "Rank", "M", "WS", "BS", "S", "T", "W", "I", "A", "Ld", "Rules", "Reference", "Package", "Requires", "Notes"],
+  rules: ["Rule", "Rules", "Rules 2", "Reference", "Status", "Package", "Requires", "Notes"],
 };
 
 export interface SheetRow {

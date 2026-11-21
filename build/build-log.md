@@ -42,6 +42,28 @@ Worked out with the owner before building, from photos of *Warhammer: the Old Wo
 19. **The Battle Standard Bearer** is fine as a slot via Core Common Links (`BSB`); a "Role" line type would be the same information.
 20. **A magic standard sits on the standard bearer**, replacing the plain standard (`+Magic Standard (replace~Standard;0-50;0-1)`).
 
+After the first deploy (owner, 21 Nov, from the phone):
+
+21. **Packages have dependencies, "like a python script".** Choosing TOW brings its base rules. Importing the Empire knows it needs the human, monster and horse race grids and the rules it names, and loads them if they aren't there. A package already in the context isn't loaded again.
+    - What a package requires is **worked out on import** from what its cards drew on (race cells, kit, command slots, rules, inherited cards), plus an optional **Requires** column on any row.
+    - An army package also needs its book's own package (the composition rows every army in the book shares).
+    - **Switching a package on in a context switches on what it needs**, noted "needed by The Empire of Man". This is derived, not logged: switch the package off and they go with it. If the GM switched a needed package off, it stays off and a warning says so.
+    - A **practice roster reads only its army list's package and what that needs.**
+    - The bundled fixtures load what they need first: the TOW game, then its races and rules.
+22. **Races are their own package** (TOW races), split from the rulebook: "they're an app, not strictly rules".
+23. **One rules package per game:** "TOW core rules" (the manifest's core, from YAML) and "tow_rulebook" (the sheets) were the same thing. They are now **TOW rules** (`tow_rules`), the manifest's core. A sheets upload into a package already in the library keeps its name, layer and edition, and adds to its requires and members.
+24. **A `Package` column on any sheet** puts that row in that package. Without one, the sheet's package is the one army package uploaded, or the package named on the import screen. A SubPackage of "Common" is the book's own package (`Forces of Fantasy`).
+25. **Rules named but not entered become stub items** in a stubs package of their own (`Stubs: The Empire of Man`, Status `Stub`). They are still flagged "not entered yet". A real rule of the same name, loaded later, wins over the stub. (This replaces the Part B technical choice "stubs listed, not made into items".)
+26. **Only packages for the context's game** (or for no game: a world's own) are offered under "Switch on another package…". The owner asked why they could load 6th edition packages into a TOW context.
+27. **The roster screen:**
+    - units are grouped by section, each with its own Add;
+    - each section, and the summary, reads like "Characters 45/250 (up to 50%)": green within the list's limits, red and bold outside them;
+    - roster-level issues (no General, over the points limit, too few units) sit in the summary;
+    - units with issues are marked, and each issue is shown in the unit it concerns (both Helblasters, for "2 taken, 0-1 per 1,000");
+    - each unit's cost folds out, one line per part;
+    - the size box can be cleared while typing.
+28. **"Show options for"** defaults to the roster's points. At 500 points, an entry or option allowed "0-1 per 1,000 points" isn't offered. It can be widened (up to N points, or everything), even though the wider choices then cause issues. **It only hides choices: issues are worked out the same.** An option already picked stays shown so it can be undone.
+
 #### The cases as built (brief §3.3, reworded for TOW)
 - **L1:** a practice roster from the TOW Empire fixture list: **Handgunners ×10 (State Missile Troops with handguns) with a Sergeant and a musician**, plus other units. Points per unit and per category against the list's costs; one limit broken shows as an issue; Ld reads **7**; nothing written to any log. (The brief's "Marksman" is the Empire Archers' champion in this book; the handgun unit's champion is a Sergeant, BS +1.)
 - **L2:** the same units registered in E1's sandbox, in a **TOW context** with **TOW copies of E1's campaign rules bound to the same world hooks** (rules belong to a game; owner, 14 Nov). Ld at 2525 = 7 with wages withheld, 8 paid; the derivation shows the army-list base first, then the world steps.
@@ -102,6 +124,10 @@ Built the way described; each is beyond the design docs as they stand.
 22. **Crew rules** turn a crew of 3 into the printed card line (W 3, A 3). The design has crew as profiles with a count; the pooling rule is new.
 23. **Role vs slot** for the Battle Standard Bearer (the design: the BSB is a role, `races-and-units.md` §6); built as a slot via Core Common Links, as the owner prefers.
 24. **Book group names** ("Commanders of the Empire only" on the Dragon Bow) need a way to name a group of entries. Not built yet.
+25. **Where a roster lives, and how it meets a world (owner, 21 Nov: "how to marry a roster to a sandbox, context, raise at a particular place vs at the world level vs empty sandbox, in-world pick-up vs campaign").**
+    - Built today: a **practice** roster (no world; it reads its army list and what that needs) and a **registered** roster (each unit becomes a world unit in a sandbox and context, linked from a raising date).
+    - Every change saves as it's made; the screen now says "Saved" (or why not).
+    - Open: a pick-up game *in* a world (reading the context's packages and world rules, nothing registered or logged); raising at a place vs at world level; a roster in an empty sandbox; campaign rosters that change over time. Put to the owner; not built.
 
 #### For the design project's registers
 - **Techniques used:**
@@ -132,6 +158,22 @@ Built the way described; each is beyond the design docs as they stand.
   - the whole private Empire imports with no errors and no warnings beyond the rulebook stubs (`test/private/`, run only where the data repo is checked out).
 - **Not built (brief §3.2, unchanged):** magic item allowances (shown, not picked), mounts' bonuses to riders as numbers, the crew rule's pooling (the crew shows as one crewman ×3), draws, inventory, locks, fixes, the card edit form (later, owner 21 Nov).
 
+#### What the 21 Nov round built
+- **Dependencies (decisions 21–26):**
+  - requires worked out on import, plus a Requires column;
+  - a Package column on any sheet;
+  - stub rule items;
+  - the book's own package;
+  - needed packages switched on with the package that needs them;
+  - practice rosters read only what they need;
+  - fixtures load what they need first;
+  - same-game packages only in the switch-on list.
+- **The TOW manifest never loaded.** Its label `Warhammer: the Old World` has a colon, so the flow list `[Warhammer: the Old World, tow]` read as a map, and the file was rejected. That was the "manifest tow isn't in the library" the owner saw. Fixed by quoting it, and the error now says "a label with a colon needs quotes". A new test loads every fixture set and fails on any error.
+- **The roster screen (decisions 27–28):** sections, summary, colours, marked units, fold-out costs, the size box, Show options for, and the Saved note.
+- **Tests:**
+  - `test/unit/packages.test.ts`: requires, labels, the Package and Requires columns, stubs and a real rule winning, switch-on bringing what's needed, a switched-off need warned, practice rosters reading only what they need, Show options for, and issues marking their units;
+  - `test/unit/fixtures-load.test.ts`.
+
 #### Technical choices (Part B)
 | Choice | Why |
 |---|---|
@@ -141,7 +183,10 @@ Built the way described; each is beyond the design docs as they stand.
 | Keys: a card is `package.unit` (`the_empire_of_man.state_troops`); other army items carry a kind prefix (`kit.`, `race.`, `link.`, `rule.`) | Keys are unique within a space: a weapon and the card it's named after (Helblaster Volley Gun) mustn't collide. Never typed by the user. |
 | A weapon's numbers (Type `weapon`) don't change the bearer's line; other kit's statline cells do (barding M −1) | The owner's sheet uses the S column for a weapon's bonus (great weapon S +1) and the M column for barding's effect on the horse. |
 | A race cell written as deltas adds to the same tree's Base cell, else Core · Base | The owner's sample writes Professional · Veteran as "WS +1"; either reading gives the same line there. |
-| Stubs are listed and flagged, not made into items | Nothing half-made is stored; when the rulebook is entered, the names simply match. |
+| ~~Stubs are listed and flagged, not made into items~~ Superseded by owner decision 25 (stub items in a stubs package; a real item wins) | |
+| What a package requires is found by noting the package of every item a card's lookups return (the library's indexes record each hit) | No second walk over the card's names: whatever the reader looked up is, by definition, what the card drew on. |
+| A context's needed packages are derived on read, not written as log entries | The switch the GM made is the fact; what it brings with it follows from the packages, and changes if the packages do. |
+| "Show options for" is per-screen state, not stored on the roster | It's a viewing aid: it changes what's offered, never the roster or its issues. |
 | Fit on import: the cells needing the fewest stored deltas, then the smallest; skipped for engines (more than one "-") | War machines and chariots have no race on purpose. |
 | An option is picked by its name, or by name + "instead of …" where two share a name | Empire Knights have two "Great Weapons" options (as well as / instead of the shield). |
 | A practice roster lives in the space `practice`, which no sandbox reads | Brief §1.3: not registered, nothing logged. |

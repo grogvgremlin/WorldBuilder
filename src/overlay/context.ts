@@ -11,7 +11,7 @@
 //
 // Pure: reads the World (content plus accepted entries), does no I/O.
 
-import { CONTEXT_GROUPS, type Expression, type CategoryOrderValues, type CategoryRanks, type EditKind, type Manifest, type ManifestContext, type PackageSwitchValues, type PinValues } from "../schema";
+import { CONTEXT_GROUPS, type Expression, type CategoryOrderValues, type CategoryRanks, type EditKind, type Manifest, type ManifestContext, type Package, type PackageSwitchValues, type PinValues } from "../schema";
 import type { World } from "../world/world";
 import type { FoldStepName } from "./derivation";
 
@@ -98,8 +98,34 @@ export function readContext(world: World, context: ManifestContext | null): Cont
         break;
     }
   }
+  addRequired(world, view);
   checkPackages(world, view);
   return view;
+}
+
+// Every package a package needs, and what those need, in the order first met. Like a python
+// script's imports (owner, 21 Nov): a package already in the list isn't loaded twice.
+export function requiresClosure(find: (key: string) => Package | undefined, roots: string[]): string[] {
+  const seen: string[] = [];
+  const visit = (key: string) => {
+    if (seen.includes(key)) return;
+    seen.push(key);
+    for (const needed of find(key)?.requires ?? []) visit(needed);
+  };
+  for (const root of roots) visit(root);
+  return seen;
+}
+
+// A package switched on brings what it requires with it, unless the GM switched that off (then
+// checkPackages warns). Derived, never stored: switching the package off again drops them.
+function addRequired(world: World, view: ContextView): void {
+  for (const state of [...view.packages]) {
+    if (!state.on) continue;
+    for (const key of requiresClosure((k) => world.packages.get(k), [state.key]).slice(1)) {
+      if (view.packages.some((p) => p.key === key)) continue;
+      view.packages.push({ key, group: "books", on: true, locked: false, note: "needed by " + (world.packages.get(state.key)?.label ?? state.key), entryId: null });
+    }
+  }
 }
 
 // Owner decision, 14 Nov: the category order belongs to the world. The context's own order
@@ -157,7 +183,7 @@ function checkPackages(world: World, view: ContextView): void {
       continue;
     }
     if (!state.on) continue;
-    for (const needed of pkg.requires) if (!on.has(needed)) view.warnings.push(pkg.label + " requires " + needed + ", which is off");
+    for (const needed of pkg.requires) if (!on.has(needed)) view.warnings.push(pkg.label + " needs " + (world.packages.get(needed)?.label ?? needed) + ", which is switched off");
     for (const clash of pkg.conflicts) if (on.has(clash)) view.warnings.push(pkg.label + " conflicts with " + clash);
     if (view.manifest && pkg.edition && pkg.edition !== view.manifest.key) {
       view.warnings.push(pkg.label + " is for edition " + pkg.edition + ", not " + view.manifest.key);

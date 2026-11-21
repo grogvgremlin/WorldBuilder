@@ -112,15 +112,24 @@ export async function loadSheets(store: Store, deps: LogDeps, dir: string, names
   return draft;
 }
 
-export const TOW_CORE_SHEETS = ["races.csv", "core-common-links.csv", "equipment-core.csv"];
+export const TOW_RACE_SHEETS = ["races.csv"];
+export const TOW_RULES_SHEETS = ["core-common-links.csv", "equipment-core.csv"];
 export const EMPIRE_SHEETS = ["army-entry.csv", "equipment.csv", "rules.csv"];
 
-// The TOW game (YAML) and the fixture Empire (sheets): the rulebook's sheets first, then the army.
+// The TOW game's sheets: its races (a package of their own) and its rules (kit and command
+// slots, into the manifest's core package). Owner, 21 Nov.
+export async function loadTowSheets(store: Store, deps: LogDeps): Promise<DraftBatch[]> {
+  const races = await loadSheets(store, deps, "tow", TOW_RACE_SHEETS, { manifest: "tow", defaultPackage: "TOW races" });
+  const rules = await loadSheets(store, deps, "tow", TOW_RULES_SHEETS, { manifest: "tow", defaultPackage: "TOW rules" });
+  return [races, rules];
+}
+
+// The TOW game (YAML), its sheets, then the fixture Empire (sheets).
 export async function loadTowEmpire(store: Store, deps: LogDeps): Promise<DraftBatch[]> {
   await loadSet(store, deps, "TOW");
-  const core = await loadSheets(store, deps, "tow", TOW_CORE_SHEETS, { manifest: "tow", defaultPackage: "TOW rulebook" });
+  const game = await loadTowSheets(store, deps);
   const empire = await loadSheets(store, deps, "tow", EMPIRE_SHEETS, { manifest: "tow", defaultPackage: "The Empire of Man" });
-  return [core, empire];
+  return [...game, empire];
 }
 
 const EMPIRE = "the_empire_of_man.";

@@ -99,8 +99,9 @@ describe("the owner's expressions", () => {
 describe("importing the fixture Empire", () => {
   it("has no errors; warns of the rulebook rules not entered yet, as stubs", async () => {
     const store = new MemoryStore();
-    const [core, empire] = await loadTowEmpire(store, testDeps());
-    expect(core.problems).toEqual([]);
+    const [races, rules, empire] = await loadTowEmpire(store, testDeps());
+    expect(races.problems).toEqual([]);
+    expect(rules.problems).toEqual([]);
     expect(empire.problems.filter((p) => p.severity === "error")).toEqual([]);
     expect(empire.problems.map((p) => p.message)).toContain("State Troops: not entered yet (stubs, incomplete): Close Order, Detachment, Regimental Unit");
   });

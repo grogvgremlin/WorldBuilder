@@ -1,0 +1,9 @@
+# TOW rules: the base package the manifest names as its core (items-packages §4). Its kit,
+# command slots and special rules come in as sheets (tow/core-common-links.csv,
+# tow/equipment-core.csv) into this same package. Owner, 21 Nov: one rules package for the game
+# (the earlier "TOW core rules" and "tow_rulebook" were the same thing); the races are a package
+# of their own (TOW races, tow/races.csv).
+
+package: [TOW rules, tow_rules]
+edition: tow
+layer: book

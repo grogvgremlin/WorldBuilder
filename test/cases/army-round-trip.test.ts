@@ -10,7 +10,7 @@ import type { Store } from "../../src/store/store";
 import { registerRoster, savePracticeRoster } from "../../src/army/register";
 import { viewRoster } from "../../src/army/roster";
 import { WholeCopy, type Roster } from "../../src/schema";
-import { EMPIRE_SHEETS, l1Roster, loadSet, loadSheets, resolveStored, testDeps, TOW_CORE_SHEETS } from "../helpers";
+import { EMPIRE_SHEETS, l1Roster, loadSet, loadSheets, resolveStored, testDeps, loadTowSheets } from "../helpers";
 
 async function everything(store: Store) {
   const content = await store.listContent();
@@ -33,7 +33,7 @@ describe.each(stores)("round trip with army lists and rosters (%s)", (_name, mak
     const store = await makeStore();
     const deps = testDeps();
     await loadSet(store, deps, "L2");
-    await loadSheets(store, deps, "tow", TOW_CORE_SHEETS, { manifest: "tow", defaultPackage: "TOW rulebook" });
+    await loadTowSheets(store, deps);
     await loadSheets(store, deps, "tow", EMPIRE_SHEETS, { manifest: "tow", defaultPackage: "The Empire of Man" });
     await savePracticeRoster(store, l1Roster());
     await registerRoster(store, { ...l1Roster(), key: "nuln_garrison" }, "e1", "tow", [

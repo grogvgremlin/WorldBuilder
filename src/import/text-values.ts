@@ -85,7 +85,9 @@ export function readHeader(node: unknown, reader: Reader, what: string): Header 
       rest.length > 0 && rest[0].range && rest[rest.length - 1].range ? [rest[0].range[0], rest[rest.length - 1].range![1]] : null;
     if (label) return { label, key: key ?? null, node, restRange };
   }
-  reader.problem(node as YamlNode, "error", what + " needs a label: [label, key]");
+  // [Warhammer: the Old World, tow] reads as a map: a colon in a label needs quotes.
+  const colon = isSeq(node) && node.items.length > 0 && !isScalar(node.items[0]);
+  reader.problem(node as YamlNode, "error", what + " needs a label: [label, key]" + (colon ? ". A label with a colon needs quotes: [\"Warhammer: the Old World\", tow]" : ""));
   return null;
 }
 

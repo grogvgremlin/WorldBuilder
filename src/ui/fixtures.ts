@@ -23,7 +23,22 @@ export const FIXTURE_SETS: { name: string; files: Fixture[] }[] = Object.entries
 const towFiles = import.meta.glob("../../test/fixtures/tow/*.csv", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const towByName = new Map(Object.entries(towFiles).map(([path, text]) => [path.split("/").pop()!, text]));
 
-export const ARMY_FIXTURES: { name: string; manifest: string; defaultPackage: string; files: Fixture[] }[] = [
-  { name: "TOW rulebook (sheets)", manifest: "tow", defaultPackage: "TOW rulebook", files: ["races.csv", "core-common-links.csv", "equipment-core.csv"].map((f) => ({ name: f, text: towByName.get(f) ?? "" })) },
-  { name: "TOW Empire (sheets)", manifest: "tow", defaultPackage: "The Empire of Man", files: ["army-entry.csv", "equipment.csv", "rules.csv"].map((f) => ({ name: f, text: towByName.get(f) ?? "" })) },
+// Each names the package it makes and the bundled pieces it needs first ("like a python script",
+// owner 21 Nov): loading the Empire loads the TOW game, its races and its rules, unless they're
+// already in the library.
+export interface ArmyFixture {
+  name: string;
+  package: string; // the package key it makes
+  manifest: string;
+  defaultPackage: string;
+  files: Fixture[];
+  needs: string[]; // package keys (or "set:<name>" for a YAML fixture set) loaded first if missing
+}
+
+const tow = (names: string[]) => names.map((f) => ({ name: f, text: towByName.get(f) ?? "" }));
+
+export const ARMY_FIXTURES: ArmyFixture[] = [
+  { name: "TOW races (sheets)", package: "tow_races", manifest: "tow", defaultPackage: "TOW races", files: tow(["races.csv"]), needs: ["set:TOW"] },
+  { name: "TOW rules (sheets)", package: "tow_rules", manifest: "tow", defaultPackage: "TOW rules", files: tow(["core-common-links.csv", "equipment-core.csv"]), needs: ["set:TOW"] },
+  { name: "TOW Empire (sheets)", package: "the_empire_of_man", manifest: "tow", defaultPackage: "The Empire of Man", files: tow(["army-entry.csv", "equipment.csv", "rules.csv"]), needs: ["set:TOW", "tow_races", "tow_rules"] },
 ];

@@ -5,7 +5,7 @@
 package: [E1 rules for TOW, e1_tow_rules]
 edition: tow
 layer: campaign
-requires: [tow_core]
+requires: [tow_rules]
 
 scopes:
   - scope: [commissioned by the treasury (TOW), commissioned_by_the_treasury_tow]

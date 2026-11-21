@@ -39,7 +39,8 @@ describe.skipIf(!present)("the whole TOW Empire (private data)", () => {
     const deps = testDeps();
     await loadSet(store, deps, "TOW");
     for (const [dir, names, pkg] of [
-      [GAME, ["races.csv", "core-common-links.csv", "equipment-core.csv"], "TOW rulebook"],
+      [GAME, ["races.csv"], "TOW races"],
+      [GAME, ["core-common-links.csv", "equipment-core.csv"], "TOW rules"],
       [ARMY, ["army-entry.csv", "equipment.csv", "rules.csv"], "The Empire of Man"],
     ] as const) {
       const { sheets } = await read(dir, [...names]);

@@ -22,9 +22,19 @@ import { hookStates, type HookState } from "../overlay/hooks";
 import { buildSheetsDraft, type SheetsOptions } from "../army/import-sheets";
 import { readInputFile, type InputFile, type Sheet } from "../army/sheets";
 import { registerRoster, savePracticeRoster, type UnitRegistration } from "../army/register";
-import { viewRoster, type RosterView } from "../army/roster";
+import { offerAt, viewRoster, type Offer, type RosterView } from "../army/roster";
 import { readRosterText, writeRosterText } from "../army/roster-text";
 import type { Problem, Roster } from "../schema";
+
+// A bundled army fixture (src/ui/fixtures.ts ArmyFixture), as app-data needs it.
+export interface ArmyFixtureInput {
+  name: string;
+  package: string;
+  manifest: string;
+  defaultPackage: string;
+  files: { name: string; text: string }[];
+  needs: string[];
+}
 
 // Everything a screen shows, read in one go.
 export interface Snapshot {
@@ -128,6 +138,48 @@ export class AppData {
     const draft = buildSheetsDraft(sheets, options.defaultPackage, options, await this.existing(null), this.deps);
     await saveDraft(this.store, draft);
     return draft;
+  }
+
+  // A bundled army fixture, after the bundled pieces it needs ("like a python script", owner
+  // 21 Nov): each missing one (a YAML set, or a package by key) is loaded and deployed first; one
+  // already in the library isn't loaded again. The fixture itself lands as a draft to review.
+  // Returns the draft (or errors) and the names of what was loaded first.
+  async importArmyFixture(
+    fixture: ArmyFixtureInput,
+    all: ArmyFixtureInput[],
+    sets: { name: string; files: { name: string; text: string }[] }[],
+  ): Promise<{ result: DraftBatch | { errors: string[] }; loaded: string[] }> {
+    const loaded: string[] = [];
+    await this.loadNeeds(fixture, all, sets, loaded);
+    const result = await this.importSheets(fixture.files, { manifest: fixture.manifest, defaultPackage: fixture.defaultPackage });
+    return { result, loaded };
+  }
+
+  private async loadNeeds(fixture: ArmyFixtureInput, all: ArmyFixtureInput[], sets: { name: string; files: { name: string; text: string }[] }[], loaded: string[]): Promise<void> {
+    for (const need of fixture.needs) {
+      const content = await this.store.listContent();
+      if (need.startsWith("set:")) {
+        const set = sets.find((s) => s.name === need.slice(4));
+        if (!set) continue;
+        let changed = false;
+        for (const file of set.files) {
+          const draft = buildDraft(file.text, file.name, await this.existing(null), this.deps);
+          if (draft.content.every((c) => c.status === "unchanged") && draft.logItems.length === 0) continue;
+          await deployDraft(this.store, this.deps, draft);
+          changed = true;
+        }
+        if (changed) loaded.push(set.name);
+        continue;
+      }
+      if (content.some((i) => i.class === "package" && i.space === "library" && i.key === need && i.members.length > 0)) continue;
+      const source = all.find((f) => f.package === need);
+      if (!source) continue;
+      await this.loadNeeds(source, all, sets, loaded);
+      const result = await this.importSheets(source.files, { manifest: source.manifest, defaultPackage: source.defaultPackage });
+      if ("errors" in result) continue;
+      await this.deploy(result);
+      loaded.push(source.name);
+    }
   }
 
   // A test world: one draft per file. Files with an identical draft already waiting are skipped,
@@ -242,6 +294,11 @@ export class AppData {
   // A roster worked out against everything in reach (army content is in the library).
   async rosterView(roster: Roster): Promise<RosterView> {
     return viewRoster(roster, await this.store.listContent());
+  }
+
+  // What the builder offers at a points value (null: everything). Only hides choices.
+  async rosterOffer(roster: Roster, points: number | null): Promise<Offer> {
+    return offerAt(roster, await this.store.listContent(), points);
   }
 
   // Saves a practice roster (outside every sandbox), or a registered one in its sandbox.

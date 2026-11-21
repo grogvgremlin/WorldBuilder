@@ -16,10 +16,37 @@ export interface ArmyLibrary {
   rules: Map<string, SpecialRule>;
   races: RaceCell[];
   lists: Map<string, ArmyList>; // by key
+  used: Set<string>; // the packages of every item looked up (for working out what a package requires)
+}
+
+// A Map that notes the package of each item looked up in it. Reading a card through the library
+// then says which packages it drew on: that's what its package requires (owner, 21 Nov).
+class TrackedMap<T extends ContentItem> extends Map<string, T> {
+  constructor(private readonly used: Set<string>) {
+    super();
+  }
+  get(key: string): T | undefined {
+    const item = super.get(key);
+    if (item?.package) this.used.add(item.package);
+    return item;
+  }
+  has(key: string): boolean {
+    return this.get(key) !== undefined;
+  }
 }
 
 export function buildArmyLibrary(content: ContentItem[]): ArmyLibrary {
-  const lib: ArmyLibrary = { cards: new Map(), cardsByKey: new Map(), equipment: new Map(), links: new Map(), rules: new Map(), races: [], lists: new Map() };
+  const used = new Set<string>();
+  const lib: ArmyLibrary = {
+    cards: new TrackedMap(used),
+    cardsByKey: new Map(),
+    equipment: new TrackedMap(used),
+    links: new TrackedMap(used),
+    rules: new TrackedMap(used),
+    races: [],
+    lists: new Map(),
+    used,
+  };
   for (const item of content) {
     if (item.class === "army_card") {
       lib.cards.set(nameKey(item.label), item);
@@ -28,11 +55,23 @@ export function buildArmyLibrary(content: ContentItem[]): ArmyLibrary {
       lib.equipment.set(nameKey(item.cells["Equipment"] ?? item.label), item);
       for (const alias of (item.cells["Alias"] ?? "").split(",")) if (alias.trim()) lib.equipment.set(nameKey(alias), item);
     } else if (item.class === "common_link") lib.links.set(nameKey(item.cells["Link Key"] ?? item.key), item);
-    else if (item.class === "special_rule") lib.rules.set(nameKey(ruleName(item.cells["Rule"] ?? item.label)), item);
+    else if (item.class === "special_rule") addRule(lib, item);
     else if (item.class === "race") lib.races.push(item);
     else if (item.class === "army_list") lib.lists.set(item.key, item);
   }
   return lib;
+}
+
+// A stub (a rule named but not yet entered) never replaces a real rule of the same name.
+function addRule(lib: ArmyLibrary, item: SpecialRule): void {
+  const key = nameKey(ruleName(item.cells["Rule"] ?? item.label));
+  const before = Map.prototype.get.call(lib.rules, key) as SpecialRule | undefined;
+  if (before && !isStub(before) && isStub(item)) return;
+  lib.rules.set(key, item);
+}
+
+export function isStub(item: ContentItem): boolean {
+  return "cells" in item && /^stub$/i.test((item.cells as Record<string, string>)["Status"] ?? "");
 }
 
 // How a name was matched: shown in the derivation ("Lances → Lance, by the plural").
@@ -72,12 +111,16 @@ export function ruleName(written: string): string {
 export function findRaceCell(lib: ArmyLibrary, race: string, tree: string, rank: string): RaceCell | null {
   const t = nameKey(tree || "Core");
   const r = nameKey(rank || "Base");
-  return lib.races.find((c) => nameKey(c.cells["Race"] ?? "") === nameKey(race) && nameKey(c.cells["Tree"] || "Core") === t && nameKey(c.cells["Rank"] || "Base") === r) ?? null;
+  const cell = lib.races.find((c) => nameKey(c.cells["Race"] ?? "") === nameKey(race) && nameKey(c.cells["Tree"] || "Core") === t && nameKey(c.cells["Rank"] || "Base") === r) ?? null;
+  if (cell?.package) lib.used.add(cell.package);
+  return cell;
 }
 
 // Every cell of one race (for the fit suggestion and the "no such cell" problem).
 export function raceCells(lib: ArmyLibrary, race: string): RaceCell[] {
-  return lib.races.filter((c) => nameKey(c.cells["Race"] ?? "") === nameKey(race));
+  const cells = lib.races.filter((c) => nameKey(c.cells["Race"] ?? "") === nameKey(race));
+  for (const c of cells) if (c.package) lib.used.add(c.package);
+  return cells;
 }
 
 // The items an equipment cell names: "Hand Weapon;Light Armour", "Barded Warhorse(Ridden)~Mount",

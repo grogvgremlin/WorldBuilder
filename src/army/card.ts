@@ -12,7 +12,7 @@
 
 import type { ArmyCard, Cells } from "../schema";
 import { describeRange, errorText, isError, listCell, nameKey, readCost, readRange, readStat, splitCall, type Cost, type Range } from "./cells";
-import { findByName, findEquipment, findRaceCell, ruleName, type ArmyLibrary } from "./library";
+import { findByName, findEquipment, findRaceCell, isStub, ruleName, type ArmyLibrary } from "./library";
 import { readLimits, readOptions, readSlots, type Limit, type OptionEntry, type OptionGroup } from "./options";
 
 export const STATS = ["M", "WS", "BS", "S", "T", "W", "I", "A", "Ld"];
@@ -71,7 +71,8 @@ export interface ResolvedCard {
   limits: Limit[];
   notes: string;
   matches: string[]; // how each name was matched ("Lances → Lance (plural)")
-  stubs: string[]; // names that matched nothing
+  stubs: string[]; // names that matched nothing (or only a stub)
+  missingRules: string[]; // rule names with no item at all, not even a stub
   warnings: string[];
 }
 
@@ -406,7 +407,12 @@ export function resolveCard(lib: ArmyLibrary, card: ArmyCard): ResolvedCard {
   const limits = readLimits(get("Unit Limit"));
   problems.push(...limits.problems.map((p) => card.label + ", Unit Limit: " + p));
   const rules = mergedRules(chain);
-  for (const r of rules) if (!lib.rules.has(nameKey(ruleName(r)))) out.stubs.push(ruleName(r));
+  const missingRules: string[] = [];
+  for (const r of rules) {
+    const found = lib.rules.get(nameKey(ruleName(r)));
+    if (!found || isStub(found)) out.stubs.push(ruleName(r));
+    if (!found) missingRules.push(ruleName(r));
+  }
 
   const troopType = get("Troop Type");
   const mounted = isMounted(equipment, get("Status")) || options.some((o) => o.group.mandatory && o.group.members.every((m) => m.isMount));
@@ -432,6 +438,7 @@ export function resolveCard(lib: ArmyLibrary, card: ArmyCard): ResolvedCard {
     notes: own["Notes"] ?? "",
     matches: unique(out.matches),
     stubs: unique(out.stubs),
+    missingRules: unique(missingRules),
     warnings: unique([...problems, ...out.warnings]),
   };
 }

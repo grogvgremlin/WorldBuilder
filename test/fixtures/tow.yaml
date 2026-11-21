@@ -1,7 +1,7 @@
 # Warhammer: the Old World: the game itself (design/manifest.md §1–2). Its statline, how it
 # combines numbers, and its core package. Owner decision, 15 Nov: the fixture army is TOW Empire.
 
-manifest: [Warhammer: the Old World, tow]
+manifest: ["Warhammer: the Old World", tow]
 stats: [M, WS, BS, S, T, W, I, A, Ld]
 bag_order: [set, add, multiply, cap, floor]
-core: [tow_core]
+core: [tow_rules]
