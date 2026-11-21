@@ -1,4 +1,4 @@
-// The app shell: six tabs, a sandbox switch, and a back stack for opened items.
+// The app shell: seven tabs, a sandbox switch, and a back stack for opened items.
 // Screens are thin: they read a Snapshot and call AppData.
 // Design: build/slice-1-brief.md §1.4 (play screens, no editors), §2.1 (one sandbox open at a
 // time), §2.3 (display).
@@ -13,10 +13,11 @@ import { ItemScreen } from "./screens/ItemScreen";
 import { ImportScreen } from "./screens/ImportScreen";
 import { LogScreen } from "./screens/LogScreen";
 import { DataScreen } from "./screens/DataScreen";
+import { RostersScreen } from "./screens/RostersScreen";
 import { itemRef, type ItemRef } from "./item-ref";
 
-type Tab = "world" | "sandbox" | "library" | "import" | "log" | "data";
-const TAB_LABELS: Record<Tab, string> = { world: "World", sandbox: "Sandbox", library: "Library", import: "Import", log: "Log", data: "Data" };
+type Tab = "world" | "rosters" | "sandbox" | "library" | "import" | "log" | "data";
+const TAB_LABELS: Record<Tab, string> = { world: "World", rosters: "Rosters", sandbox: "Sandbox", library: "Library", import: "Import", log: "Log", data: "Data" };
 
 export function App({ data }: { data: AppData }) {
   const [tab, setTab] = useState<Tab>("world");
@@ -55,7 +56,7 @@ export function App({ data }: { data: AppData }) {
 
   const current = opened.length ? opened[opened.length - 1] : null;
   const currentItem = current ? snapshot.all.find((i) => itemRef(i) === current) : undefined;
-  const showSandboxSwitch = (tab === "world" || tab === "log" || tab === "sandbox") && current === null && snapshot.sandboxes.length > 0;
+  const showSandboxSwitch = (tab === "world" || tab === "log" || tab === "sandbox" || tab === "rosters") && current === null && snapshot.sandboxes.length > 0;
   const browsing = tab === "world" || tab === "library" || tab === "sandbox";
 
   return (
@@ -80,6 +81,7 @@ export function App({ data }: { data: AppData }) {
           <ItemScreen key={current} data={data} snapshot={snapshot} itemRef={current} onOpenItem={openItem} onBack={back} onEditText={editAsText} />
         )}
         {tab === "world" && current === null && <WorldScreen data={data} snapshot={snapshot} onOpenItem={openItem} onImport={() => goTo("import")} onEditText={editAsText} onChanged={refresh} />}
+        {tab === "rosters" && <RostersScreen data={data} snapshot={snapshot} onChanged={refresh} />}
         {tab === "sandbox" && current === null && <SandboxScreen data={data} snapshot={snapshot} onOpenItem={openItem} onEditText={editAsText} onChanged={refresh} />}
         {tab === "library" && current === null && <LibraryScreen snapshot={snapshot} onOpenItem={openItem} />}
         {tab === "import" && (

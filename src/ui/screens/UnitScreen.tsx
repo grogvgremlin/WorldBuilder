@@ -192,6 +192,15 @@ function DerivationView({ derivation, context, unitKey, canPin, onPin, onRemoveP
       </h3>
       <p>
         Start: {formatNumber(derivation.base)} <span className="muted">({derivation.baseNote})</span>
+        {derivation.baseSteps && derivation.baseSteps.length > 0 && (
+          <span className="muted">
+            {derivation.baseSteps.map((step, i) => (
+              <span key={i}>
+                <br />· {step}
+              </span>
+            ))}
+          </span>
+        )}
       </p>
       <div className="steps">
         {derivation.steps.map((step, i) => {

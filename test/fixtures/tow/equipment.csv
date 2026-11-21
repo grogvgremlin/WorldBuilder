@@ -1,0 +1,4 @@
+Equipment,Match Key,M,WS,BS,S,T,W,I,A,Ld,Save,Rules,Alias,Rules 2,Type,R,AP,Cost,Reference
+Helblaster Volley Gun,,,,,5,,,,,,,Armour Bane(2);Cumbersome;Helblaster;Move or Shoot,,Uses the Black Powder Misfire table.,weapon,"24""",-1,,Forces of Fantasy;72
+Helstorm Rocket Battery,,,,,3,,,,,,,Cumbersome;Helstorm;Move or Shoot,,"Uses a number of 3"" blast templates and the Black Powder Misfire table.",weapon,"12-48""",-1,,Forces of Fantasy;73
+Hochland Long Rifle,,,,,4,,,,,,,Armour Bane(1);Cumbersome;Ponderous,,"Can target a specific model within its target unit, such as a champion or a character.",weapon,"36""",-1,,Forces of Fantasy;77

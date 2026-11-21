@@ -1,0 +1,5 @@
+Race,Tree,Rank,M,WS,BS,S,T,W,I,A,Ld,Rules,Reference,Notes
+Human,Core,Base,4,3,3,3,3,1,3,1,7,,Forces of Fantasy;48-73,"State Trooper, State Missile Trooper, Archer, Gun Crew (+ delta)"
+Human,Professional,Base,4,3,3,3,3,1,3,1,8,,Forces of Fantasy;48-73,no unit sits here exactly
+Human,Professional,Veteran,4,4,3,3,3,1,3,1,8,,Forces of Fantasy;48-73,"Greatsword, Empire Knight"
+Human,Professional,Hero,4,5,3,4,4,2,4,2,8,,Forces of Fantasy;48-73,"Captain (+BS 2), Chapter Master (+I +A)"

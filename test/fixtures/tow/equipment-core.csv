@@ -1,0 +1,17 @@
+Equipment,Match Key,M,WS,BS,S,T,W,I,A,Ld,Save,Rules,Alias,Rules 2,Type,R,AP,Cost,Reference
+Hand Weapon,,,,,,,,,,,,,"Sword,Axe",,weapon,,,,Warhammer: the Old World rulebook
+Additional Hand Weapon,,,,,,,,,,,,,,rulebook: not entered,weapon,,,,Warhammer: the Old World rulebook
+Great Weapon,,,,,+1,,,,,,,Two Handed,,owner's value S +1; check against the rulebook (TOW great weapon may be S +2),weapon,,,,Warhammer: the Old World rulebook
+Halberd,,,,,,,,,,,,Two Handed[-Strike Last],,,weapon,,,,Warhammer: the Old World rulebook
+Spear,,,,,,,,,,,,,Thrusting Spear,,weapon,,,,Warhammer: the Old World rulebook
+Handgun,,,,,,,,,,,,,,rulebook: not entered,weapon,,,,Warhammer: the Old World rulebook
+Crossbow,,,,,,,,,,,,,,rulebook: not entered,weapon,,,,Warhammer: the Old World rulebook
+Brace of Pistols,,,,,,,,,,,,,,rulebook: not entered,weapon,,,,Warhammer: the Old World rulebook
+Repeater Handgun,,,,,,,,,,,,,,rulebook: not entered,weapon,,,,Warhammer: the Old World rulebook
+Light Armour,,,,,,,,,,,6,,,,armour,,,,Warhammer: the Old World rulebook
+Full Plate Armour,,,,,,,,,,,,,,rulebook: not entered,armour,,,,Warhammer: the Old World rulebook
+Shield,,,,,,,,,,,,,,rulebook: not entered,armour,,,,Warhammer: the Old World rulebook
+Standard,,,,,,,,,,,,,,rulebook: not entered,command,,,,Warhammer: the Old World rulebook
+Musician,,,,,,,,,,,,,,rulebook: not entered,command,,,,Warhammer: the Old World rulebook
+Magic Items,,,,,,,,,,,,,,"any magic item in reach, within the budget given",allowance,,,,Warhammer: the Old World rulebook
+Magic Standard,,,,,,,,,,,,,,"any magic standard in reach, within the budget given",allowance,,,,Warhammer: the Old World rulebook

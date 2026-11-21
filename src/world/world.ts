@@ -60,6 +60,7 @@ export interface World {
   contexts: Map<string, ManifestContext>;
   hooks: Map<string, HookView>;
   fixes: AcceptedEntry[]; // accepted GM-fix entries (package switches, orders, pins), in log order
+  army: ContentItem[]; // army lists, races, equipment and rosters in reach (src/army reads them)
 }
 
 const FIX_KINDS = new Set(["package_switch", "category_order", "pin"]);
@@ -80,6 +81,7 @@ export function buildWorld(content: ContentItem[], entries: AcceptedEntry[]): Wo
     contexts: new Map(),
     hooks: new Map(),
     fixes: [],
+    army: [],
   };
   const sorted = [...content].sort((a, b) => a.key.localeCompare(b.key));
   for (const item of sorted) addContentItem(world, item);
@@ -149,6 +151,15 @@ function addContentItem(world: World, item: ContentItem): void {
       break;
     case "hook":
       addHook(world, item);
+      break;
+    case "race":
+    case "equipment":
+    case "common_link":
+    case "special_rule":
+    case "army_card":
+    case "army_list":
+    case "roster":
+      world.army.push(item);
       break;
   }
 }

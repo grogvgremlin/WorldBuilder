@@ -10,6 +10,7 @@
 import type { ContentItem, DraftBatch, DraftTarget, EventRecord, ManifestContext, Package, Problem, Sandbox } from "../schema";
 import type { Store } from "../store/store";
 import { appendEvent, type LogDeps } from "../log/log";
+import { refreshSheetsDraft } from "../army/import-sheets";
 import { looksLikeKey, referencedKeys } from "./expression-text";
 import { unknownWordWarnings, worldNamingWarnings } from "./vocabulary";
 import { DEFAULT_STAT_ORDER, readText, slugify, type HeaderNeedingKey, type ParsedText, type RefSite } from "./text-format";
@@ -80,6 +81,7 @@ export function buildDraft(text: string, fileLabel: string, existing: Existing, 
 // keeping its ID. Run before deploying: a draft made before others were deployed would otherwise
 // carry stale warnings, stale new / edit statuses, or log an event that's already logged.
 export function refreshDraft(draft: DraftBatch, existing: Existing): DraftBatch {
+  if (draft.sheets) return refreshSheetsDraft(draft, existing);
   const fresh = buildDraft(draft.sourceText, draft.label, existing, { newId: () => draft.id, now: () => draft.createdTime });
   return { ...fresh, label: draft.label };
 }

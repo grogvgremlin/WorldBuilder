@@ -19,5 +19,20 @@
     "wfb6.yaml",
     "e4-rules.yaml",
     "e4-world.yaml"
+  ],
+  "L2": [
+    "wfb6-base.yaml",
+    "wfb6.yaml",
+    "e1-rules.yaml",
+    "e1-campaign-rules.yaml",
+    "tow-core.yaml",
+    "tow.yaml",
+    "e1-tow-rules.yaml",
+    "l2-world.yaml",
+    "e1-log.yaml"
+  ],
+  "TOW": [
+    "tow-core.yaml",
+    "tow.yaml"
   ]
 }

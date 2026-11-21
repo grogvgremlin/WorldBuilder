@@ -1,0 +1,32 @@
+# E1's campaign rules for TOW (build-log, Part B: the cases as built, L2). Rules belong to a game
+# (owner, 14 Nov), so TOW has its own copies, bound to the same world things and the same hook
+# ("Treasury not paying") as the WFB 6th ones in e1-rules.yaml and e1-campaign-rules.yaml.
+
+package: [E1 rules for TOW, e1_tow_rules]
+edition: tow
+layer: campaign
+requires: [tow_core]
+
+scopes:
+  - scope: [commissioned by the treasury (TOW), commissioned_by_the_treasury_tow]
+    query: reaches(wissenland_treasury, serves > paid_by)
+
+rules:
+  - rule: [Nuln civic pride (TOW), nuln_civic_pride_tow]
+    effect: [Ld, +1]
+    scope: reaches(nuln, raised_at > in*)
+    nature: origin
+    category: place
+
+  - rule: [Gunnery School (TOW), gunnery_school_pride_tow]
+    effect: [Ld, =8, inline]
+    scope: reaches(gunnery_school, member_of)
+    nature: origin
+    category: organisation
+
+  - rule: [Unpaid wages (TOW), unpaid_wages_tow]
+    effect: [Ld, -1]
+    scope: commissioned_by_the_treasury_tow
+    trigger: treasury_not_paying
+    nature: environment
+    category: title
