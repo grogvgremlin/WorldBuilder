@@ -158,6 +158,11 @@ Built the way described; each is beyond the design docs as they stand.
   - the whole private Empire imports with no errors and no warnings beyond the rulebook stubs (`test/private/`, run only where the data repo is checked out).
 - **Not built (brief §3.2, unchanged):** magic item allowances (shown, not picked), mounts' bonuses to riders as numbers, the crew rule's pooling (the crew shows as one crewman ×3), draws, inventory, locks, fixes, the card edit form (later, owner 21 Nov).
 
+#### Owner note, 21 Nov: loading and contexts, for later usability work
+- **The end state:** everything is *loaded* into the library first. Creating a context by choosing a game switches on its core package automatically, and shows the packages that can be switched on for that game. This is roughly how the app works now; what needs work is how it feels to use.
+- **How the app works now:** a context's core is always on. "Switch on another package…" lists that game's packages, and each brings in what it needs. Loading is done on Import, and only the bundled fixtures fetch what's missing for you.
+- **Still open:** whether a package's needs are re-checked when a later import supplies a name it was missing (offered 21 Nov, not yet answered).
+
 #### What the 21 Nov round built
 - **Dependencies (decisions 21–26):**
   - requires worked out on import, plus a Requires column;
