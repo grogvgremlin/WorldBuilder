@@ -28,6 +28,7 @@ import {
   type ValueDerivation,
 } from "./derivation";
 import { applyEdit, categoryRank, orderCandidates, type Candidate, type OrderConfig, type Ordered } from "./order";
+import { armyBaseFor, type ArmyBase } from "../army/registered";
 
 export interface UnitResolution {
   unitKey: string;
@@ -75,10 +76,19 @@ export function resolveUnit(
 
 // --- One unit --------------------------------------------------------------------
 
-function resolveUnitInWorld(world: World, unit: Unit, readDate: number): UnitResolution {
+// A unit registered from a roster reads its base line from the army list (brief §3.3 L2: the
+// army-list base first, then the world steps). Other units carry their printed profile.
+function withBase(world: World, unit: Unit): { unit: Unit; army: ArmyBase | null } {
+  if (!unit.source) return { unit, army: null };
+  const army = armyBaseFor(world.army, unit.source);
+  return { unit: { ...unit, profile: army?.profile ?? unit.profile }, army };
+}
+
+function resolveUnitInWorld(world: World, stored: Unit, readDate: number): UnitResolution {
+  const { unit, army } = withBase(world, stored);
   const view = readContext(world, contextFor(world, unit.context));
   const header = resolutionHeader(unit, readDate, view);
-  if (readDate < unit.raised) return notYetRaised(unit, header);
+  if (readDate < unit.raised) return notYetRaised(unit, header, army);
 
   // Rules from packages listed in this context (on or off). Others aren't in this context at
   // all, so they aren't shown. With no context (an old copy), every rule is in play.
@@ -93,6 +103,10 @@ function resolveUnitInWorld(world: World, unit: Unit, readDate: number): UnitRes
   for (const [stat, base] of Object.entries(unit.profile)) {
     const forStat = checks.filter((check) => check.rule.effect.stat === stat);
     const derivation = foldValue(world, view, unit, stat, base, forStat);
+    if (army) {
+      derivation.baseNote = army.note;
+      derivation.baseSteps = army.steps;
+    }
     values[stat] = derivation.final;
     derivations[stat] = derivation;
     clashes.push(...derivation.clashes);
@@ -116,10 +130,11 @@ function resolutionHeader(unit: Unit, readDate: number, view: ContextView): Head
 }
 
 // Before the raising date: the printed profile only, nothing read from the world.
-function notYetRaised(unit: Unit, header: Header): UnitResolution {
+function notYetRaised(unit: Unit, header: Header, army: ArmyBase | null): UnitResolution {
   const derivations: Record<string, ValueDerivation> = {};
   for (const [stat, base] of Object.entries(unit.profile)) {
-    derivations[stat] = { stat, base, baseNote: "profile (not raised until " + unit.raised + ")", steps: [], lost: [], final: base, clashes: [] };
+    const note = (army ? army.note : "profile") + " (not raised until " + unit.raised + ")";
+    derivations[stat] = { stat, base, baseNote: note, baseSteps: army?.steps, steps: [], lost: [], final: base, clashes: [] };
   }
   return { ...header, notYetRaised: true, values: { ...unit.profile }, derivations, rules: [], clashes: [] };
 }

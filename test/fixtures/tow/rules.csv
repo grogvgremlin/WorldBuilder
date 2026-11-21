@@ -1,0 +1,3 @@
+Rule,Rules,Rules 2,Reference
+Helblaster,,"Roll three Artillery dice; shots = their total. One Misfire: -1 To Hit. Two: no shots, roll on the Misfire table. Three: 30 shots at -1 To Hit, then the Helblaster is destroyed. Uses the crew's BS.",Forces of Fantasy;72
+Helstorm,,"No line of sight needed. Place D3 3"" blast templates over a target unit in range; each scatters (Misfire: fails to launch; Hit!: Artillery dice minus the crew's BS; arrow: the Artillery dice roll). Models under a template risk being hit.",Forces of Fantasy;73

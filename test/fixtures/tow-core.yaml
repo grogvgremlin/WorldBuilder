@@ -1,0 +1,6 @@
+# TOW core rules: the base package the manifest names as its core (items-packages §4).
+# Empty of world rules: the rulebook's units, races and kit come in as sheets (tow/*.csv).
+
+package: [TOW core rules, tow_core]
+edition: tow
+layer: book

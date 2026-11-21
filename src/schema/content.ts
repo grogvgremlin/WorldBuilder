@@ -15,6 +15,7 @@
 
 import { z } from "zod";
 import { Expression } from "./expression";
+import { ArmyCard, ArmyList, CommonLink, EquipmentItem, RaceCell, Roster, SpecialRule } from "./army";
 
 export const InWorldDate = z.number();
 
@@ -74,12 +75,21 @@ export type WorldEvent = z.infer<typeof WorldEvent>;
 
 // A unit: a protagonist registered in the world, with a profile and a raising date.
 // Its links (raised at, member of, serves, stationed at) are ordinary Link items.
+// A unit registered from a roster (brief §3.1) names its roster and roster unit; its profile is
+// then worked out from the army list, not stored (the truth is the roster's choices).
+export const UnitSource = z.object({
+  roster: z.string(), // the roster's key (in the same sandbox)
+  unit: z.string(), // the roster unit's id
+});
+export type UnitSource = z.infer<typeof UnitSource>;
+
 export const Unit = z.object({
   class: z.literal("unit"),
   ...itemBase,
-  profile: z.record(z.string(), z.number()), // stat name -> value, e.g. { Ld: 7 }
+  profile: z.record(z.string(), z.number()), // stat name -> value, e.g. { Ld: 7 }; empty for a roster unit
   raised: InWorldDate,
   context: z.string().nullable(), // the manifest context it's registered in; null = the sandbox's first
+  source: UnitSource.nullable().optional(), // set for a unit registered from a roster
 });
 export type Unit = z.infer<typeof Unit>;
 
@@ -226,5 +236,12 @@ export const ContentItem = z.discriminatedUnion("class", [
   Manifest,
   Sandbox,
   ManifestContext,
+  RaceCell,
+  EquipmentItem,
+  CommonLink,
+  SpecialRule,
+  ArmyCard,
+  ArmyList,
+  Roster,
 ]);
 export type ContentItem = z.infer<typeof ContentItem>;

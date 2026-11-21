@@ -5,6 +5,7 @@
 export * from "./log-entry";
 export * from "./expression";
 export * from "./content";
+export * from "./army";
 export * from "./draft-and-copy";
 export * from "./log-values";
 

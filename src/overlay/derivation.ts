@@ -74,7 +74,8 @@ export interface ClashNotice {
 export interface ValueDerivation {
   stat: string;
   base: number;
-  baseNote: string; // "profile"
+  baseNote: string; // "profile", or "army list: …" for a unit registered from a roster
+  baseSteps?: string[]; // for a roster unit: how the army list made the base (race cell, deltas)
   steps: AppliedStep[];
   lost: LostStep[];
   final: number;
